@@ -24,13 +24,23 @@ app.use(express.static('public'));
 // Multer setup for file uploads
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    const uploadDir = path.join(__dirname, 'public', 'uploads', 'partners');
+    // Determine folder based on URL
+    let folder = 'partners'; // default
+    if (req.url.includes('/leagues')) {
+      folder = 'leagues';
+    }
+    
+    const uploadDir = path.join(__dirname, 'public', 'uploads', folder);
     fs.ensureDirSync(uploadDir);
     cb(null, uploadDir);
   },
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, 'partner-' + uniqueSuffix + path.extname(file.originalname));
+    let prefix = 'partner';
+    if (req.url.includes('/leagues')) {
+      prefix = 'league';
+    }
+    cb(null, prefix + '-' + uniqueSuffix + path.extname(file.originalname));
   }
 });
 
@@ -120,6 +130,23 @@ function initDatabase() {
   db.run(`ALTER TABLE partners ADD COLUMN logo_path TEXT`, (err) => {
     // This will error if column already exists, which is fine
   });
+  
+  // Create leagues table
+  db.run(`CREATE TABLE IF NOT EXISTS leagues (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    image_path TEXT,
+    information TEXT NOT NULL,
+    handbook_url TEXT,
+    standings_url TEXT,
+    registration_status TEXT DEFAULT 'active',
+    registration_url TEXT,
+    is_active BOOLEAN DEFAULT 1,
+    is_archived BOOLEAN DEFAULT 0,
+    sort_order INTEGER DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    created_by TEXT
+  )`);
   
   // Add sort_order column if it doesn't exist (for existing databases)
   db.run(`ALTER TABLE news ADD COLUMN sort_order INTEGER DEFAULT 0`, (err) => {
@@ -416,6 +443,11 @@ app.get('/videos', (req, res) => {
 // Partners page route
 app.get('/partners', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'partners.html'));
+});
+
+// Leagues page route
+app.get('/leagues', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'leagues.html'));
 });
 
 // Discord webhook endpoint
@@ -1193,6 +1225,162 @@ app.put('/api/partners/reorder', (req, res) => {
       console.error('Error reordering partners:', err.message);
       res.status(500).json({ error: 'Failed to reorder partners' });
     });
+});
+
+// Leagues API endpoints
+
+// Get leagues endpoint
+app.get('/api/leagues', (req, res) => {
+  db.all(
+    'SELECT * FROM leagues WHERE is_active = 1 AND is_archived = 0 ORDER BY sort_order ASC, created_at ASC',
+    (err, rows) => {
+      if (err) {
+        res.status(500).json({ error: err.message });
+        return;
+      }
+      res.json(rows);
+    }
+  );
+});
+
+// Add league endpoint
+app.post('/api/leagues', upload.single('image'), (req, res) => {
+  const authValidation = validateAdminToken(req.headers.authorization);
+  
+  if (!authValidation.valid) {
+    return res.status(401).json({ error: 'Authentication required' });
+  }
+  
+  const { name, information, handbook_url, standings_url, registration_status, registration_url } = req.body;
+  
+  if (!name || !information) {
+    return res.status(400).json({ error: 'Name and information are required' });
+  }
+  
+  const imagePath = req.file ? `/uploads/leagues/${req.file.filename}` : null;
+  
+  // Update multer config to handle leagues folder
+  if (req.file) {
+    const leaguesDir = path.join(__dirname, 'public', 'uploads', 'leagues');
+    fs.ensureDirSync(leaguesDir);
+  }
+  
+  db.run(
+    `INSERT INTO leagues (name, information, image_path, handbook_url, standings_url, registration_status, registration_url, created_by) 
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    [name, information, imagePath, handbook_url, standings_url, registration_status || 'active', registration_url, authValidation.username],
+    function(err) {
+      if (err) {
+        res.status(500).json({ error: err.message });
+        return;
+      }
+      
+      res.json({ 
+        id: this.lastID,
+        name,
+        information,
+        image_path: imagePath
+      });
+    }
+  );
+});
+
+// Update league endpoint
+app.put('/api/leagues/:id', upload.single('image'), (req, res) => {
+  const authValidation = validateAdminToken(req.headers.authorization);
+  
+  if (!authValidation.valid) {
+    return res.status(401).json({ error: 'Authentication required' });
+  }
+  
+  const leagueId = req.params.id;
+  const { name, information, handbook_url, standings_url, registration_status, registration_url, is_active } = req.body;
+  
+  let query = `UPDATE leagues SET name = ?, information = ?, handbook_url = ?, standings_url = ?, registration_status = ?, registration_url = ?, is_active = ?`;
+  let params = [name, information, handbook_url, standings_url, registration_status, registration_url, is_active === 'true' ? 1 : 0];
+  
+  if (req.file) {
+    const imagePath = `/uploads/leagues/${req.file.filename}`;
+    query += `, image_path = ?`;
+    params.push(imagePath);
+  }
+  
+  query += ` WHERE id = ?`;
+  params.push(leagueId);
+  
+  db.run(query, params, function(err) {
+    if (err) {
+      res.status(500).json({ error: err.message });
+      return;
+    }
+    
+    if (this.changes === 0) {
+      res.status(404).json({ error: 'League not found' });
+      return;
+    }
+    
+    res.json({ success: true, changes: this.changes });
+  });
+});
+
+// Archive/unarchive league endpoint
+app.put('/api/leagues/:id/archive', (req, res) => {
+  const authValidation = validateAdminToken(req.headers.authorization);
+  
+  if (!authValidation.valid) {
+    return res.status(401).json({ error: 'Authentication required' });
+  }
+  
+  const leagueId = req.params.id;
+  
+  // Toggle archive status
+  db.get('SELECT is_archived FROM leagues WHERE id = ?', [leagueId], (err, row) => {
+    if (err) {
+      res.status(500).json({ error: err.message });
+      return;
+    }
+    
+    if (!row) {
+      res.status(404).json({ error: 'League not found' });
+      return;
+    }
+    
+    const newArchivedStatus = row.is_archived ? 0 : 1;
+    
+    db.run('UPDATE leagues SET is_archived = ? WHERE id = ?', [newArchivedStatus, leagueId], function(err) {
+      if (err) {
+        res.status(500).json({ error: err.message });
+        return;
+      }
+      
+      res.json({ success: true, archived: newArchivedStatus });
+    });
+  });
+});
+
+// Delete league endpoint
+app.delete('/api/leagues/:id', (req, res) => {
+  const authValidation = validateAdminToken(req.headers.authorization);
+  
+  if (!authValidation.valid) {
+    return res.status(401).json({ error: 'Authentication required' });
+  }
+  
+  const leagueId = req.params.id;
+  
+  db.run('DELETE FROM leagues WHERE id = ?', [leagueId], function(err) {
+    if (err) {
+      res.status(500).json({ error: err.message });
+      return;
+    }
+    
+    if (this.changes === 0) {
+      res.status(404).json({ error: 'League not found' });
+      return;
+    }
+    
+    res.json({ success: true, changes: this.changes });
+  });
 });
 
 // YouTube integration endpoints

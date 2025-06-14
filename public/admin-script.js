@@ -67,6 +67,8 @@ class AdminManager {
             this.loadVideos();
         } else if (tabName === 'partners') {
             this.loadPartners();
+        } else if (tabName === 'leagues') {
+            this.loadLeagues();
         }
     }
     
@@ -1256,6 +1258,341 @@ class AdminManager {
         } catch (error) {
             console.error('Error deleting partner:', error);
             alert('Error deleting partner');
+        }
+    }
+
+    // Leagues Management Functions
+    async loadLeagues() {
+        const container = document.getElementById('adminLeaguesContainer');
+        container.innerHTML = '<div class="loading">Loading leagues...</div>';
+        
+        try {
+            const response = await fetch('/api/leagues', {
+                headers: {
+                    'Authorization': `Bearer ${this.authToken}`
+                }
+            });
+            const leagues = await response.json();
+            
+            this.renderAdminLeagues(leagues);
+            this.bindLeagueAdminEvents();
+        } catch (error) {
+            console.error('Error loading leagues:', error);
+            container.innerHTML = '<div class="loading">Error loading leagues</div>';
+        }
+    }
+    
+    renderAdminLeagues(leagues) {
+        const container = document.getElementById('adminLeaguesContainer');
+        
+        if (leagues.length === 0) {
+            container.innerHTML = '<div class="loading">No leagues yet. Create your first league!</div>';
+            return;
+        }
+        
+        container.innerHTML = leagues.map(league => `
+            <div class="league-card admin-league-card" data-league-id="${league.id}">
+                <div class="league-header">
+                    ${league.image_path ? `<img src="${league.image_path}" alt="${league.name}" class="league-image-admin">` : ''}
+                    <div class="league-info">
+                        <h3>${league.name}</h3>
+                        <span class="registration-status ${league.registration_status}">${this.getStatusLabel(league.registration_status)}</span>
+                    </div>
+                </div>
+                <div class="league-content">
+                    <p>${league.information.substring(0, 100)}${league.information.length > 100 ? '...' : ''}</p>
+                    <div class="league-links">
+                        ${league.handbook_url ? `<a href="${league.handbook_url}" target="_blank" rel="noopener noreferrer">Handbook</a>` : ''}
+                        ${league.standings_url ? `<a href="${league.standings_url}" target="_blank" rel="noopener noreferrer">Standings</a>` : ''}
+                        ${league.registration_url ? `<a href="${league.registration_url}" target="_blank" rel="noopener noreferrer">Registration</a>` : ''}
+                    </div>
+                </div>
+                <div class="admin-controls-inline">
+                    <button class="btn-small btn-edit" onclick="adminManager.editLeague(${league.id})">Edit</button>
+                    <button class="btn-small btn-archive" onclick="adminManager.archiveLeague(${league.id})">${league.is_archived ? 'Unarchive' : 'Archive'}</button>
+                    <button class="btn-small btn-delete" onclick="adminManager.deleteLeague(${league.id})">Delete</button>
+                    <span class="status-badge ${league.is_active ? 'active' : 'inactive'}">${league.is_active ? 'Active' : 'Inactive'}</span>
+                </div>
+            </div>
+        `).join('');
+    }
+    
+    getStatusLabel(status) {
+        switch(status) {
+            case 'active': return 'Active / Signups Open!';
+            case 'reserve': return 'Reserve List';
+            case 'closed': return 'Full/Signups Closed';
+            default: return 'Unknown';
+        }
+    }
+    
+    bindLeagueAdminEvents() {
+        const addLeagueBtn = document.getElementById('adminAddLeagueBtn');
+        if (addLeagueBtn) {
+            addLeagueBtn.onclick = () => this.showAddLeagueModal();
+        }
+    }
+    
+    showAddLeagueModal() {
+        const modal = document.createElement('div');
+        modal.className = 'admin-modal';
+        modal.innerHTML = `
+            <div class="admin-modal-content">
+                <h3>Create New League</h3>
+                <form id="addLeagueForm" class="admin-form">
+                    <label for="leagueName">League Name:</label>
+                    <input type="text" id="leagueName" placeholder="Enter league name" required>
+                    
+                    <label for="leagueImage">League Image:</label>
+                    <input type="file" id="leagueImage" accept="image/*" class="file-input">
+                    <small class="form-help">Upload league image (JPG, PNG, GIF)</small>
+                    
+                    <label for="leagueInformation">League Information:</label>
+                    <textarea id="leagueInformation" placeholder="Enter detailed league information..." rows="8" required></textarea>
+                    
+                    <label for="leagueHandbook">League Handbook (URL):</label>
+                    <input type="url" id="leagueHandbook" placeholder="https://handbook-url.com">
+                    
+                    <label for="leagueStandings">League Standings (URL):</label>
+                    <input type="url" id="leagueStandings" placeholder="https://standings-url.com">
+                    
+                    <label for="registrationStatus">Registration Status:</label>
+                    <select id="registrationStatus" required>
+                        <option value="active">Active / Signups Open!</option>
+                        <option value="reserve">Reserve List</option>
+                        <option value="closed">Full/Signups Closed</option>
+                    </select>
+                    
+                    <label for="registrationUrl">Registration URL (for Active/Reserve):</label>
+                    <input type="url" id="registrationUrl" placeholder="https://registration-url.com">
+                    
+                    <div class="form-buttons">
+                        <button type="button" class="btn btn-outline" onclick="this.closest('.admin-modal').remove()">Cancel</button>
+                        <button type="submit" class="btn">Create League</button>
+                    </div>
+                </form>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        
+        document.getElementById('addLeagueForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            await this.addLeague();
+            modal.remove();
+        });
+    }
+    
+    async addLeague() {
+        const name = document.getElementById('leagueName').value;
+        const information = document.getElementById('leagueInformation').value;
+        const handbookUrl = document.getElementById('leagueHandbook').value;
+        const standingsUrl = document.getElementById('leagueStandings').value;
+        const registrationStatus = document.getElementById('registrationStatus').value;
+        const registrationUrl = document.getElementById('registrationUrl').value;
+        const imageFile = document.getElementById('leagueImage').files[0];
+        
+        if (!name || !information) {
+            alert('League name and information are required');
+            return;
+        }
+        
+        try {
+            const formData = new FormData();
+            formData.append('name', name);
+            formData.append('information', information);
+            formData.append('handbook_url', handbookUrl);
+            formData.append('standings_url', standingsUrl);
+            formData.append('registration_status', registrationStatus);
+            formData.append('registration_url', registrationUrl);
+            
+            if (imageFile) {
+                formData.append('image', imageFile);
+            }
+            
+            const response = await fetch('/api/leagues', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${this.authToken}`
+                },
+                body: formData
+            });
+            
+            const data = await response.json();
+            
+            if (response.ok) {
+                this.loadLeagues();
+                alert('League created successfully!');
+            } else {
+                alert(data.error || 'Failed to create league');
+            }
+        } catch (error) {
+            console.error('Error creating league:', error);
+            alert('Error creating league');
+        }
+    }
+    
+    async editLeague(leagueId) {
+        try {
+            const response = await fetch('/api/leagues');
+            const leagues = await response.json();
+            const league = leagues.find(l => l.id === leagueId);
+            
+            if (!league) {
+                alert('League not found');
+                return;
+            }
+            
+            const modal = document.createElement('div');
+            modal.className = 'admin-modal';
+            modal.innerHTML = `
+                <div class="admin-modal-content">
+                    <h3>Edit League</h3>
+                    <form id="editLeagueForm" class="admin-form">
+                        <label for="editLeagueName">League Name:</label>
+                        <input type="text" id="editLeagueName" value="${league.name}" required>
+                        
+                        <label for="editLeagueImage">League Image:</label>
+                        <input type="file" id="editLeagueImage" accept="image/*" class="file-input">
+                        <small class="form-help">Upload new image (leave empty to keep current)</small>
+                        
+                        <label for="editLeagueInformation">League Information:</label>
+                        <textarea id="editLeagueInformation" rows="8" required>${league.information}</textarea>
+                        
+                        <label for="editLeagueHandbook">League Handbook (URL):</label>
+                        <input type="url" id="editLeagueHandbook" value="${league.handbook_url || ''}">
+                        
+                        <label for="editLeagueStandings">League Standings (URL):</label>
+                        <input type="url" id="editLeagueStandings" value="${league.standings_url || ''}">
+                        
+                        <label for="editRegistrationStatus">Registration Status:</label>
+                        <select id="editRegistrationStatus" required>
+                            <option value="active" ${league.registration_status === 'active' ? 'selected' : ''}>Active / Signups Open!</option>
+                            <option value="reserve" ${league.registration_status === 'reserve' ? 'selected' : ''}>Reserve List</option>
+                            <option value="closed" ${league.registration_status === 'closed' ? 'selected' : ''}>Full/Signups Closed</option>
+                        </select>
+                        
+                        <label for="editRegistrationUrl">Registration URL:</label>
+                        <input type="url" id="editRegistrationUrl" value="${league.registration_url || ''}">
+                        
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="editLeagueActive" ${league.is_active ? 'checked' : ''}> Active
+                        </label>
+                        
+                        <div class="form-buttons">
+                            <button type="button" class="btn btn-outline" onclick="this.closest('.admin-modal').remove()">Cancel</button>
+                            <button type="submit" class="btn">Update League</button>
+                        </div>
+                    </form>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            
+            document.getElementById('editLeagueForm').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                await this.updateLeague(leagueId);
+                modal.remove();
+            });
+        } catch (error) {
+            console.error('Error loading league:', error);
+            alert('Error loading league details');
+        }
+    }
+    
+    async updateLeague(leagueId) {
+        const name = document.getElementById('editLeagueName').value;
+        const information = document.getElementById('editLeagueInformation').value;
+        const handbookUrl = document.getElementById('editLeagueHandbook').value;
+        const standingsUrl = document.getElementById('editLeagueStandings').value;
+        const registrationStatus = document.getElementById('editRegistrationStatus').value;
+        const registrationUrl = document.getElementById('editRegistrationUrl').value;
+        const isActive = document.getElementById('editLeagueActive').checked;
+        const imageFile = document.getElementById('editLeagueImage').files[0];
+        
+        try {
+            const formData = new FormData();
+            formData.append('name', name);
+            formData.append('information', information);
+            formData.append('handbook_url', handbookUrl);
+            formData.append('standings_url', standingsUrl);
+            formData.append('registration_status', registrationStatus);
+            formData.append('registration_url', registrationUrl);
+            formData.append('is_active', isActive);
+            
+            if (imageFile) {
+                formData.append('image', imageFile);
+            }
+            
+            const response = await fetch(`/api/leagues/${leagueId}`, {
+                method: 'PUT',
+                headers: {
+                    'Authorization': `Bearer ${this.authToken}`
+                },
+                body: formData
+            });
+            
+            const data = await response.json();
+            
+            if (response.ok) {
+                this.loadLeagues();
+                alert('League updated successfully!');
+            } else {
+                alert(data.error || 'Failed to update league');
+            }
+        } catch (error) {
+            console.error('Error updating league:', error);
+            alert('Error updating league');
+        }
+    }
+    
+    async archiveLeague(leagueId) {
+        try {
+            const response = await fetch(`/api/leagues/${leagueId}/archive`, {
+                method: 'PUT',
+                headers: {
+                    'Authorization': `Bearer ${this.authToken}`
+                }
+            });
+            
+            const data = await response.json();
+            
+            if (response.ok) {
+                this.loadLeagues();
+                alert('League archived/unarchived successfully!');
+            } else {
+                alert(data.error || 'Failed to archive league');
+            }
+        } catch (error) {
+            console.error('Error archiving league:', error);
+            alert('Error archiving league');
+        }
+    }
+    
+    async deleteLeague(leagueId) {
+        if (!confirm('Are you sure you want to delete this league? This action cannot be undone.')) {
+            return;
+        }
+        
+        try {
+            const response = await fetch(`/api/leagues/${leagueId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${this.authToken}`
+                }
+            });
+            
+            const data = await response.json();
+            
+            if (response.ok) {
+                this.loadLeagues();
+                alert('League deleted successfully!');
+            } else {
+                alert(data.error || 'Failed to delete league');
+            }
+        } catch (error) {
+            console.error('Error deleting league:', error);
+            alert('Error deleting league');
         }
     }
 }

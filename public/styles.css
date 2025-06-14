@@ -2156,6 +2156,455 @@ main {
     gap: 0.75rem;
 }
 
+/* Leagues Styles */
+.leagues-section {
+    padding: 2rem 0 4rem;
+    margin-top: 0;
+    background-color: var(--primary-bg);
+}
+
+.leagues-intro {
+    margin-bottom: 3rem;
+    text-align: center;
+}
+
+.leagues-intro p {
+    color: var(--text-secondary);
+    font-size: 1.1rem;
+    line-height: 1.6;
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.leagues-container {
+    display: grid;
+    grid-template-columns: 1fr 2fr;
+    gap: 2rem;
+    min-height: 600px;
+}
+
+.leagues-list {
+    background: var(--secondary-bg);
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+    padding: 1rem;
+    max-height: 800px;
+    overflow-y: auto;
+}
+
+.league-list-item {
+    background: var(--primary-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.league-list-item:hover {
+    border-color: var(--accent-color);
+    background: var(--hover-bg);
+}
+
+.league-list-item.selected {
+    border-color: var(--accent-color);
+    background: linear-gradient(135deg, var(--hover-bg) 0%, rgba(0, 180, 216, 0.1) 100%);
+}
+
+.league-list-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 0.5rem;
+    gap: 1rem;
+}
+
+.league-list-header h3 {
+    color: var(--text-primary);
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin: 0;
+    flex: 1;
+}
+
+.registration-status {
+    padding: 0.25rem 0.5rem;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.registration-status.active {
+    background: rgba(34, 197, 94, 0.2);
+    color: #22c55e;
+}
+
+.registration-status.reserve {
+    background: rgba(251, 191, 36, 0.2);
+    color: #fbbf24;
+}
+
+.registration-status.closed {
+    background: rgba(156, 163, 175, 0.2);
+    color: #9ca3af;
+}
+
+.league-list-preview {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    line-height: 1.4;
+    margin: 0;
+}
+
+.league-details {
+    background: var(--secondary-bg);
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+    overflow: hidden;
+}
+
+.league-details-placeholder {
+    padding: 3rem;
+    text-align: center;
+    color: var(--text-muted);
+}
+
+.league-details-placeholder h3 {
+    color: var(--text-primary);
+    margin-bottom: 1rem;
+}
+
+.league-details-content {
+    display: grid;
+    grid-template-columns: 1fr 300px;
+    min-height: 600px;
+}
+
+.league-details-left {
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.league-details-nav {
+    display: flex;
+    background: var(--primary-bg);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.nav-tab {
+    background: none;
+    border: none;
+    padding: 1rem 1.5rem;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border-bottom: 2px solid transparent;
+}
+
+.nav-tab:hover {
+    color: var(--text-primary);
+    background: var(--hover-bg);
+}
+
+.nav-tab.active {
+    color: var(--accent-color);
+    border-bottom-color: var(--accent-color);
+    background: var(--secondary-bg);
+}
+
+.league-details-tabs {
+    flex: 1;
+    padding: 2rem;
+}
+
+.tab-content {
+    display: none;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+.tab-content h3 {
+    color: var(--text-primary);
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-bottom: 1.5rem;
+}
+
+.league-information {
+    color: var(--text-secondary);
+    line-height: 1.7;
+}
+
+.league-information p {
+    margin-bottom: 1rem;
+}
+
+.league-action-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: var(--accent-color);
+    color: var(--text-primary);
+    padding: 0.75rem 1.5rem;
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    margin-top: 1rem;
+}
+
+.league-action-btn:hover {
+    background: var(--accent-light);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 180, 216, 0.3);
+}
+
+.league-action-btn.registration-btn {
+    background: #22c55e;
+}
+
+.league-action-btn.registration-btn:hover {
+    background: #16a34a;
+}
+
+.league-action-btn.reserve-btn {
+    background: #fbbf24;
+    color: var(--primary-bg);
+}
+
+.league-action-btn.reserve-btn:hover {
+    background: #f59e0b;
+}
+
+.registration-open {
+    color: #22c55e;
+    font-weight: 600;
+    margin-bottom: 1rem;
+}
+
+.registration-reserve {
+    color: #fbbf24;
+    font-weight: 600;
+    margin-bottom: 1rem;
+}
+
+.registration-closed {
+    color: #9ca3af;
+    font-weight: 600;
+    margin-bottom: 1rem;
+}
+
+.league-details-right {
+    background: var(--primary-bg);
+    border-left: 1px solid var(--border-color);
+    padding: 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.league-details-image {
+    width: 100%;
+    height: auto;
+    max-height: 400px;
+    object-fit: contain;
+    border-radius: 8px;
+}
+
+.league-details-placeholder-image {
+    width: 100%;
+    height: 200px;
+    background: var(--secondary-bg);
+    border: 2px dashed var(--border-color);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+}
+
+.no-leagues {
+    padding: 3rem;
+    text-align: center;
+    color: var(--text-muted);
+}
+
+.no-leagues h3 {
+    color: var(--text-primary);
+    margin-bottom: 1rem;
+}
+
+/* Admin League Styles */
+.league-card {
+    background: var(--secondary-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    transition: all 0.3s ease;
+}
+
+.league-card:hover {
+    border-color: var(--accent-color);
+    box-shadow: 0 4px 12px rgba(0, 180, 216, 0.2);
+}
+
+.league-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.league-image-admin {
+    width: 80px;
+    height: 50px;
+    object-fit: contain;
+    border-radius: 6px;
+    background: var(--primary-bg);
+    padding: 0.25rem;
+}
+
+.league-info h3 {
+    color: var(--text-primary);
+    font-size: 1.2rem;
+    font-weight: 600;
+    margin: 0 0 0.25rem 0;
+}
+
+.league-content {
+    margin-bottom: 1rem;
+}
+
+.league-content p {
+    color: var(--text-secondary);
+    line-height: 1.5;
+    margin-bottom: 0.75rem;
+}
+
+.league-links {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.league-links a {
+    color: var(--accent-color);
+    text-decoration: none;
+    font-size: 0.9rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    background: rgba(0, 180, 216, 0.1);
+    transition: background 0.3s ease;
+}
+
+.league-links a:hover {
+    background: rgba(0, 180, 216, 0.2);
+}
+
+.admin-controls-inline {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border-color);
+}
+
+.btn-small {
+    padding: 0.5rem 1rem;
+    font-size: 0.8rem;
+    border: 1px solid var(--border-color);
+    background: var(--primary-bg);
+    color: var(--text-primary);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.btn-small:hover {
+    border-color: var(--accent-color);
+    background: var(--hover-bg);
+}
+
+.btn-edit:hover {
+    border-color: var(--accent-color);
+    color: var(--accent-color);
+}
+
+.btn-archive:hover {
+    border-color: #fbbf24;
+    color: #fbbf24;
+}
+
+.btn-delete:hover {
+    border-color: #ef4444;
+    color: #ef4444;
+}
+
+.status-badge {
+    padding: 0.25rem 0.5rem;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    margin-left: auto;
+}
+
+.status-badge.active {
+    background: rgba(34, 197, 94, 0.2);
+    color: #22c55e;
+}
+
+.status-badge.inactive {
+    background: rgba(156, 163, 175, 0.2);
+    color: #9ca3af;
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+    .leagues-container {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+    
+    .league-details-content {
+        grid-template-columns: 1fr;
+    }
+    
+    .league-details-right {
+        border-left: none;
+        border-top: 1px solid var(--border-color);
+        padding: 1.5rem;
+    }
+    
+    .league-details-nav {
+        flex-wrap: wrap;
+    }
+    
+    .nav-tab {
+        flex: 1;
+        text-align: center;
+        padding: 0.75rem;
+        font-size: 0.8rem;
+    }
+    
+    .league-list-header {
+        flex-direction: column;
+        gap: 0.5rem;
+        align-items: flex-start;
+    }
+    
+    .registration-status {
+        align-self: flex-start;
+    }
+}
+
 .partner-header h2 {
     color: var(--text-primary);
     font-size: 1.5rem;
