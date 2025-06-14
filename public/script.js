@@ -333,6 +333,10 @@ class NewsManager {
         const item = this.heroNews[this.currentHeroIndex];
         if (!item) return;
         
+        // Get second image from next hero item if available
+        const secondItem = this.heroNews[(this.currentHeroIndex + 1) % this.heroNews.length];
+        const hasSecondImage = secondItem && this.heroNews.length > 1;
+        
         const formattedDate = this.formatDate(item.timestamp);
         const excerpt = this.createExcerpt(item.content, 1200);
         
@@ -343,20 +347,38 @@ class NewsManager {
         
         // Use local image if available, fallback to original URL
         const heroImageSource = item.local_image_path || item.image_url;
+        const secondImageSource = hasSecondImage ? (secondItem.local_image_path || secondItem.image_url) : null;
+        
+        // Create images HTML
+        let imagesHTML = '';
+        if (heroImageSource) {
+            if (hasSecondImage && secondImageSource) {
+                // Two images side by side
+                imagesHTML = `
+                    <img src="${heroImageSource}" alt="${item.title}" class="hero-news-image">
+                    <img src="${secondImageSource}" alt="${secondItem.title}" class="hero-image-secondary">
+                `;
+            } else {
+                // Single image, centered
+                imagesHTML = `<img src="${heroImageSource}" alt="${item.title}" class="hero-news-image single">`;
+            }
+        } else {
+            // Placeholder
+            imagesHTML = `
+                <div class="hero-placeholder" style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+                    <div style="font-size: 4rem; color: var(--accent-color);">${item.isLiveStream ? '📺' : '📰'}</div>
+                    <div style="color: var(--text-secondary); margin-top: 1rem;">${item.isLiveStream ? 'Live Stream' : 'News Article'}</div>
+                </div>
+            `;
+        }
         
         this.heroNewsCard.innerHTML = `
             <div class="hero-content">
                 <div class="hero-image-content" style="position: relative;">
                     ${liveIndicator}
-                    ${heroImageSource ? 
-                        `<img src="${heroImageSource}" alt="${item.title}" class="hero-news-image">` : 
-                        `<div class="hero-placeholder">
-                            <div style="font-size: 4rem; color: var(--accent-color);">${item.isLiveStream ? '📺' : '📰'}</div>
-                            <div style="color: var(--text-secondary); margin-top: 1rem;">${item.isLiveStream ? 'Live Stream' : 'News Article'}</div>
-                        </div>`
-                    }
+                    ${imagesHTML}
                     ${item.isLiveStream ? 
-                        `<div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 80px; height: 80px; background: rgba(255, 0, 0, 0.8); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 2rem; pointer-events: none;">▶</div>` : 
+                        `<div style="position: absolute; top: 50%; left: 25%; transform: translate(-50%, -50%); width: 80px; height: 80px; background: rgba(255, 0, 0, 0.8); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 2rem; pointer-events: none;">▶</div>` : 
                         ''
                     }
                 </div>
