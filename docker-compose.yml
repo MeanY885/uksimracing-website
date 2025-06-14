@@ -1,33 +1,39 @@
 version: '3.8'
 
 services:
-  web:
+  app:
     build: .
+    container_name: uksimracing-app
+    restart: unless-stopped
     ports:
-      - "2000:2000"
-    volumes:
-      - ./data:/app/data
-    env_file:
-      - .env
+      - "80:80"     # HTTP
+      - "443:80"    # HTTPS (FortiGate handles SSL termination)
+      - "2000:80"   # Development/backup port
     environment:
       - NODE_ENV=production
-      - DISCORD_WEBHOOK_SECRET=${DISCORD_WEBHOOK_SECRET}
-    restart: unless-stopped
+      - PORT=80
+    env_file:
+      - .env
+    volumes:
+      - ./data:/app/data
     networks:
       - uksimracing
 
   discord-bot:
     build: ./discord-bot
+    container_name: uksimracing-discord-bot
+    restart: unless-stopped
     environment:
       - DISCORD_BOT_TOKEN=${DISCORD_BOT_TOKEN}
-      - WEBSITE_URL=http://web:2000
+      - WEBSITE_URL=http://app:80
       - WEBHOOK_SECRET=${WEBHOOK_SECRET}
       - TRIGGER_MENTION=UKSimRacingWebsite
-    restart: unless-stopped
+    env_file:
+      - .env
     networks:
       - uksimracing
     depends_on:
-      - web
+      - app
 
 networks:
   uksimracing:
