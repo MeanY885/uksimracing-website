@@ -69,6 +69,22 @@ function initDatabase() {
     sort_order INTEGER DEFAULT 0
   )`);
   
+  // Create partners table
+  db.run(`CREATE TABLE IF NOT EXISTS partners (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    description TEXT NOT NULL,
+    url TEXT NOT NULL,
+    partner_type TEXT DEFAULT 'partner',
+    benefits TEXT,
+    instructions TEXT,
+    is_featured BOOLEAN DEFAULT 0,
+    is_active BOOLEAN DEFAULT 1,
+    sort_order INTEGER DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    created_by TEXT
+  )`);
+  
   // Add sort_order column if it doesn't exist (for existing databases)
   db.run(`ALTER TABLE news ADD COLUMN sort_order INTEGER DEFAULT 0`, (err) => {
     // This will error if column already exists, which is fine
@@ -92,6 +108,41 @@ function initDatabase() {
           }
         }
       );
+    }
+  });
+  
+  // Create default partners if they don't exist
+  db.get('SELECT COUNT(*) as count FROM partners', (err, row) => {
+    if (!err && row.count === 0) {
+      // Add RaceAnywhere as featured partner
+      db.run(`INSERT INTO partners (name, description, url, partner_type, benefits, instructions, is_featured, sort_order, created_by) 
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, [
+        'RaceAnywhere',
+        'RaceAnywhere offers professional sim racing experiences and training programs. They provide expert coaching and high-quality racing setups that have been thoroughly tested by our community.',
+        'https://www.raceanywhere.co.uk/iRUK',
+        'Featured Partner',
+        'Professional sim racing coaching\niRacing setup development\nPerformance analysis and improvement\nCustom training programs',
+        'Click through our link below to visit RaceAnywhere and make any purchase.',
+        1,
+        1,
+        'system'
+      ]);
+      
+      // Add RWS iRacing Photography
+      db.run(`INSERT INTO partners (name, description, url, partner_type, benefits, instructions, is_featured, sort_order, created_by) 
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, [
+        'RWS iRacing Photography',
+        'RWS iRacing Photography specializes in stunning virtual motorsport photography, capturing the best moments from iRacing events with professional quality and artistic flair.',
+        'https://ko-fi.com/rwsiracingphotography/gallery#galleryItemView',
+        'Creative Partner',
+        'Professional iRacing photography\nEvent coverage and documentation\nCustom racing artwork\nHigh-quality racing prints',
+        'Visit their gallery and consider supporting their work through Ko-fi.',
+        0,
+        2,
+        'system'
+      ]);
+      
+      console.log('✅ Default partners created');
     }
   });
   
@@ -326,6 +377,10 @@ app.get('/videos', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'videos.html'));
 });
 
+// Partners page route
+app.get('/partners', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'partners.html'));
+});
 
 // Discord webhook endpoint
 app.post('/webhook/discord', async (req, res) => {
@@ -959,6 +1014,150 @@ app.post('/api/videos/reorder', (req, res) => {
     .catch((err) => {
       console.error('Error reordering videos:', err.message);
       res.status(500).json({ error: 'Failed to reorder videos' });
+    });
+});
+
+// Partners API endpoints
+
+// Get partners endpoint
+app.get('/api/partners', (req, res) => {
+  db.all(
+    'SELECT * FROM partners WHERE is_active = 1 ORDER BY sort_order ASC, created_at ASC',
+    (err, rows) => {
+      if (err) {
+        res.status(500).json({ error: err.message });
+        return;
+      }
+      res.json(rows);
+    }
+  );
+});
+
+// Add partner endpoint
+app.post('/api/partners', (req, res) => {
+  const authValidation = validateAdminToken(req.headers.authorization);
+  
+  if (!authValidation.valid) {
+    return res.status(401).json({ error: 'Authentication required' });
+  }
+  
+  const { name, description, url, partner_type, benefits, instructions, is_featured } = req.body;
+  
+  if (!name || !description || !url) {
+    return res.status(400).json({ error: 'Name, description, and URL are required' });
+  }
+  
+  db.run(
+    `INSERT INTO partners (name, description, url, partner_type, benefits, instructions, is_featured, created_by) 
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    [name, description, url, partner_type || 'Partner', benefits || '', instructions || '', is_featured ? 1 : 0, authValidation.username],
+    function(err) {
+      if (err) {
+        res.status(500).json({ error: err.message });
+        return;
+      }
+      
+      res.json({ 
+        id: this.lastID,
+        name,
+        description,
+        url,
+        partner_type,
+        benefits,
+        instructions,
+        is_featured: is_featured ? 1 : 0
+      });
+    }
+  );
+});
+
+// Update partner endpoint
+app.put('/api/partners/:id', (req, res) => {
+  const authValidation = validateAdminToken(req.headers.authorization);
+  
+  if (!authValidation.valid) {
+    return res.status(401).json({ error: 'Authentication required' });
+  }
+  
+  const partnerId = req.params.id;
+  const { name, description, url, partner_type, benefits, instructions, is_featured, is_active } = req.body;
+  
+  db.run(
+    `UPDATE partners SET name = ?, description = ?, url = ?, partner_type = ?, benefits = ?, instructions = ?, is_featured = ?, is_active = ?
+     WHERE id = ?`,
+    [name, description, url, partner_type, benefits, instructions, is_featured ? 1 : 0, is_active !== false ? 1 : 0, partnerId],
+    function(err) {
+      if (err) {
+        res.status(500).json({ error: err.message });
+        return;
+      }
+      
+      if (this.changes === 0) {
+        res.status(404).json({ error: 'Partner not found' });
+        return;
+      }
+      
+      res.json({ success: true, changes: this.changes });
+    }
+  );
+});
+
+// Delete partner endpoint
+app.delete('/api/partners/:id', (req, res) => {
+  const authValidation = validateAdminToken(req.headers.authorization);
+  
+  if (!authValidation.valid) {
+    return res.status(401).json({ error: 'Authentication required' });
+  }
+  
+  const partnerId = req.params.id;
+  
+  db.run('DELETE FROM partners WHERE id = ?', [partnerId], function(err) {
+    if (err) {
+      res.status(500).json({ error: err.message });
+      return;
+    }
+    
+    if (this.changes === 0) {
+      res.status(404).json({ error: 'Partner not found' });
+      return;
+    }
+    
+    res.json({ success: true, changes: this.changes });
+  });
+});
+
+// Reorder partners endpoint
+app.put('/api/partners/reorder', (req, res) => {
+  const authValidation = validateAdminToken(req.headers.authorization);
+  
+  if (!authValidation.valid) {
+    return res.status(401).json({ error: 'Authentication required' });
+  }
+  
+  const { partnerIds } = req.body;
+  
+  if (!Array.isArray(partnerIds)) {
+    return res.status(400).json({ error: 'partnerIds must be an array' });
+  }
+  
+  // Update each partner with its new sort order
+  const updatePromises = partnerIds.map((id, index) => {
+    return new Promise((resolve, reject) => {
+      db.run('UPDATE partners SET sort_order = ? WHERE id = ?', [index, id], (err) => {
+        if (err) reject(err);
+        else resolve();
+      });
+    });
+  });
+  
+  Promise.all(updatePromises)
+    .then(() => {
+      res.json({ success: true });
+    })
+    .catch((err) => {
+      console.error('Error reordering partners:', err.message);
+      res.status(500).json({ error: 'Failed to reorder partners' });
     });
 });
 

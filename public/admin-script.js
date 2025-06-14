@@ -65,6 +65,8 @@ class AdminManager {
             this.loadUsers();
         } else if (tabName === 'videos') {
             this.loadVideos();
+        } else if (tabName === 'partners') {
+            this.loadPartners();
         }
     }
     
@@ -1006,6 +1008,246 @@ class AdminManager {
             return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
         } else {
             return `${minutes}:${secs.toString().padStart(2, '0')}`;
+        }
+    }
+
+    // Partners Management Functions
+    async loadPartners() {
+        const container = document.getElementById('adminPartnersContainer');
+        container.innerHTML = '<div class="loading">Loading partners...</div>';
+        
+        try {
+            const response = await fetch('/api/partners', {
+                headers: {
+                    'Authorization': `Bearer ${this.authToken}`
+                }
+            });
+            const partners = await response.json();
+            
+            this.renderAdminPartners(partners);
+            this.bindPartnerAdminEvents();
+        } catch (error) {
+            console.error('Error loading partners:', error);
+            container.innerHTML = '<div class="loading">Error loading partners</div>';
+        }
+    }
+    
+    renderAdminPartners(partners) {
+        const container = document.getElementById('adminPartnersContainer');
+        
+        if (partners.length === 0) {
+            container.innerHTML = '<div class="loading">No partners yet. Add your first partner!</div>';
+            return;
+        }
+        
+        container.innerHTML = partners.map(partner => `
+            <div class="partner-card admin-partner-card" data-partner-id="${partner.id}">
+                <div class="partner-header">
+                    <h3>${partner.name}</h3>
+                    <span class="partner-badge ${partner.is_featured ? 'featured' : ''}">${partner.partner_type}</span>
+                </div>
+                <div class="partner-content">
+                    <p>${partner.description}</p>
+                    <div class="partner-url">
+                        <strong>URL:</strong> <a href="${partner.url}" target="_blank" rel="noopener noreferrer">${partner.url}</a>
+                    </div>
+                    ${partner.benefits ? `<div class="partner-benefits-preview"><strong>Benefits:</strong> ${partner.benefits.split('\n')[0]}${partner.benefits.split('\n').length > 1 ? '...' : ''}</div>` : ''}
+                </div>
+                <div class="admin-controls-inline">
+                    <button class="btn-small btn-edit" onclick="adminManager.editPartner(${partner.id})">Edit</button>
+                    <button class="btn-small btn-delete" onclick="adminManager.deletePartner(${partner.id})">Delete</button>
+                    <span class="status-badge ${partner.is_active ? 'active' : 'inactive'}">${partner.is_active ? 'Active' : 'Inactive'}</span>
+                </div>
+            </div>
+        `).join('');
+    }
+    
+    bindPartnerAdminEvents() {
+        const addPartnerBtn = document.getElementById('adminAddPartnerBtn');
+        if (addPartnerBtn) {
+            addPartnerBtn.onclick = () => this.showAddPartnerModal();
+        }
+    }
+    
+    showAddPartnerModal() {
+        const modal = document.createElement('div');
+        modal.className = 'admin-modal';
+        modal.innerHTML = `
+            <div class="admin-modal-content">
+                <h3>Add New Partner</h3>
+                <form id="addPartnerForm" class="admin-form">
+                    <input type="text" id="partnerName" placeholder="Partner Name" required>
+                    <input type="text" id="partnerType" placeholder="Partner Type (e.g., Featured Partner)" value="Partner">
+                    <input type="url" id="partnerUrl" placeholder="Partner URL" required>
+                    <textarea id="partnerDescription" placeholder="Partner Description" rows="4" required></textarea>
+                    <textarea id="partnerBenefits" placeholder="Benefits (one per line)" rows="4"></textarea>
+                    <textarea id="partnerInstructions" placeholder="Instructions for supporting UKSR" rows="3"></textarea>
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="partnerFeatured"> Featured Partner
+                    </label>
+                    <div class="form-buttons">
+                        <button type="button" class="btn btn-outline" onclick="this.closest('.admin-modal').remove()">Cancel</button>
+                        <button type="submit" class="btn">Add Partner</button>
+                    </div>
+                </form>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        
+        document.getElementById('addPartnerForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            await this.addPartner();
+            modal.remove();
+        });
+    }
+    
+    async addPartner() {
+        const partnerData = {
+            name: document.getElementById('partnerName').value,
+            partner_type: document.getElementById('partnerType').value,
+            url: document.getElementById('partnerUrl').value,
+            description: document.getElementById('partnerDescription').value,
+            benefits: document.getElementById('partnerBenefits').value,
+            instructions: document.getElementById('partnerInstructions').value,
+            is_featured: document.getElementById('partnerFeatured').checked
+        };
+        
+        try {
+            const response = await fetch('/api/partners', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${this.authToken}`
+                },
+                body: JSON.stringify(partnerData)
+            });
+            
+            const data = await response.json();
+            
+            if (response.ok) {
+                this.loadPartners(); // Reload partners
+                alert('Partner added successfully!');
+            } else {
+                alert(data.error || 'Failed to add partner');
+            }
+        } catch (error) {
+            console.error('Error adding partner:', error);
+            alert('Error adding partner');
+        }
+    }
+    
+    async editPartner(partnerId) {
+        try {
+            // Fetch partner details
+            const response = await fetch('/api/partners');
+            const partners = await response.json();
+            const partner = partners.find(p => p.id === partnerId);
+            
+            if (!partner) {
+                alert('Partner not found');
+                return;
+            }
+            
+            const modal = document.createElement('div');
+            modal.className = 'admin-modal';
+            modal.innerHTML = `
+                <div class="admin-modal-content">
+                    <h3>Edit Partner</h3>
+                    <form id="editPartnerForm" class="admin-form">
+                        <input type="text" id="editPartnerName" placeholder="Partner Name" value="${partner.name}" required>
+                        <input type="text" id="editPartnerType" placeholder="Partner Type" value="${partner.partner_type}">
+                        <input type="url" id="editPartnerUrl" placeholder="Partner URL" value="${partner.url}" required>
+                        <textarea id="editPartnerDescription" placeholder="Partner Description" rows="4" required>${partner.description}</textarea>
+                        <textarea id="editPartnerBenefits" placeholder="Benefits (one per line)" rows="4">${partner.benefits || ''}</textarea>
+                        <textarea id="editPartnerInstructions" placeholder="Instructions for supporting UKSR" rows="3">${partner.instructions || ''}</textarea>
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="editPartnerFeatured" ${partner.is_featured ? 'checked' : ''}> Featured Partner
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="editPartnerActive" ${partner.is_active ? 'checked' : ''}> Active
+                        </label>
+                        <div class="form-buttons">
+                            <button type="button" class="btn btn-outline" onclick="this.closest('.admin-modal').remove()">Cancel</button>
+                            <button type="submit" class="btn">Update Partner</button>
+                        </div>
+                    </form>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            
+            document.getElementById('editPartnerForm').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                await this.updatePartner(partnerId);
+                modal.remove();
+            });
+        } catch (error) {
+            console.error('Error loading partner:', error);
+            alert('Error loading partner details');
+        }
+    }
+    
+    async updatePartner(partnerId) {
+        const partnerData = {
+            name: document.getElementById('editPartnerName').value,
+            partner_type: document.getElementById('editPartnerType').value,
+            url: document.getElementById('editPartnerUrl').value,
+            description: document.getElementById('editPartnerDescription').value,
+            benefits: document.getElementById('editPartnerBenefits').value,
+            instructions: document.getElementById('editPartnerInstructions').value,
+            is_featured: document.getElementById('editPartnerFeatured').checked,
+            is_active: document.getElementById('editPartnerActive').checked
+        };
+        
+        try {
+            const response = await fetch(`/api/partners/${partnerId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${this.authToken}`
+                },
+                body: JSON.stringify(partnerData)
+            });
+            
+            const data = await response.json();
+            
+            if (response.ok) {
+                this.loadPartners(); // Reload partners
+                alert('Partner updated successfully!');
+            } else {
+                alert(data.error || 'Failed to update partner');
+            }
+        } catch (error) {
+            console.error('Error updating partner:', error);
+            alert('Error updating partner');
+        }
+    }
+    
+    async deletePartner(partnerId) {
+        if (!confirm('Are you sure you want to delete this partner? This action cannot be undone.')) {
+            return;
+        }
+        
+        try {
+            const response = await fetch(`/api/partners/${partnerId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${this.authToken}`
+                }
+            });
+            
+            const data = await response.json();
+            
+            if (response.ok) {
+                this.loadPartners(); // Reload partners
+                alert('Partner deleted successfully!');
+            } else {
+                alert(data.error || 'Failed to delete partner');
+            }
+        } catch (error) {
+            console.error('Error deleting partner:', error);
+            alert('Error deleting partner');
         }
     }
 }

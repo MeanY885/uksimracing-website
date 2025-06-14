@@ -106,62 +106,8 @@
                     </div>
                 </div>
 
-                <div class="partners-grid">
-                    <div class="partner-card featured">
-                        <div class="partner-header">
-                            <h2>RaceAnywhere</h2>
-                            <span class="partner-badge">Featured Partner</span>
-                        </div>
-                        <div class="partner-content">
-                            <p>RaceAnywhere offers professional sim racing experiences and training programs. They provide expert coaching and high-quality racing setups that have been thoroughly tested by our community.</p>
-                            
-                            <div class="partner-benefits">
-                                <h4>What they offer:</h4>
-                                <ul>
-                                    <li>Professional sim racing coaching</li>
-                                    <li>iRacing setup development</li>
-                                    <li>Performance analysis and improvement</li>
-                                    <li>Custom training programs</li>
-                                </ul>
-                            </div>
-                            
-                            <div class="partner-cta">
-                                <p><strong>How to support UKSR:</strong> Click through our link below to visit RaceAnywhere and make any purchase.</p>
-                                <a href="https://www.raceanywhere.co.uk/iRUK" class="partner-btn" target="_blank" rel="noopener noreferrer sponsored">
-                                    Visit RaceAnywhere
-                                    <span class="external-link">→</span>
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="partner-card">
-                        <div class="partner-header">
-                            <h2>RWS iRacing Photography</h2>
-                            <span class="partner-badge">Creative Partner</span>
-                        </div>
-                        <div class="partner-content">
-                            <p>RWS iRacing Photography specializes in stunning virtual motorsport photography, capturing the best moments from iRacing events with professional quality and artistic flair.</p>
-                            
-                            <div class="partner-benefits">
-                                <h4>What they offer:</h4>
-                                <ul>
-                                    <li>Professional iRacing photography</li>
-                                    <li>Event coverage and documentation</li>
-                                    <li>Custom racing artwork</li>
-                                    <li>High-quality racing prints</li>
-                                </ul>
-                            </div>
-                            
-                            <div class="partner-cta">
-                                <p><strong>How to support UKSR:</strong> Visit their gallery and consider supporting their work through Ko-fi.</p>
-                                <a href="https://ko-fi.com/rwsiracingphotography/gallery#galleryItemView" class="partner-btn" target="_blank" rel="noopener noreferrer sponsored">
-                                    View Gallery
-                                    <span class="external-link">→</span>
-                                </a>
-                            </div>
-                        </div>
-                    </div>
+                <div class="partners-grid" id="partnersContainer">
+                    <div class="loading">Loading partners...</div>
                 </div>
 
                 <div class="partners-footer">
@@ -210,5 +156,93 @@
     </footer>
 
     <script src="script.js"></script>
+    <script>
+        // Partners page JavaScript
+        class PartnersManager {
+            constructor() {
+                this.partnersContainer = document.getElementById('partnersContainer');
+                this.loadPartners();
+            }
+            
+            async loadPartners() {
+                try {
+                    const response = await fetch('/api/partners');
+                    const partners = await response.json();
+                    
+                    if (partners.length === 0) {
+                        this.showNoPartners();
+                        return;
+                    }
+                    
+                    this.renderPartners(partners);
+                } catch (error) {
+                    console.error('Error loading partners:', error);
+                    this.showError();
+                }
+            }
+            
+            renderPartners(partners) {
+                this.partnersContainer.innerHTML = partners.map(partner => this.createPartnerCard(partner)).join('');
+            }
+            
+            createPartnerCard(partner) {
+                const benefits = partner.benefits ? partner.benefits.split('\n').filter(b => b.trim()) : [];
+                const instructions = partner.instructions || 'Click through our link to support UKSR.';
+                const isFeatured = partner.is_featured === 1;
+                
+                return `
+                    <div class="partner-card ${isFeatured ? 'featured' : ''}">
+                        <div class="partner-header">
+                            <h2>${partner.name}</h2>
+                            <span class="partner-badge">${partner.partner_type}</span>
+                        </div>
+                        <div class="partner-content">
+                            <p>${partner.description}</p>
+                            
+                            ${benefits.length > 0 ? `
+                                <div class="partner-benefits">
+                                    <h4>What they offer:</h4>
+                                    <ul>
+                                        ${benefits.map(benefit => `<li>${benefit}</li>`).join('')}
+                                    </ul>
+                                </div>
+                            ` : ''}
+                            
+                            <div class="partner-cta">
+                                <p><strong>How to support UKSR:</strong> ${instructions}</p>
+                                <a href="${partner.url}" class="partner-btn" target="_blank" rel="noopener noreferrer sponsored">
+                                    Visit ${partner.name}
+                                    <span class="external-link">→</span>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            showNoPartners() {
+                this.partnersContainer.innerHTML = `
+                    <div class="loading">
+                        <h3>No partners yet!</h3>
+                        <p>Check back soon for partnerships with trusted racing brands.</p>
+                    </div>
+                `;
+            }
+            
+            showError() {
+                this.partnersContainer.innerHTML = `
+                    <div class="loading">
+                        <h3>Unable to load partners</h3>
+                        <p>Please try refreshing the page or check back later.</p>
+                    </div>
+                `;
+            }
+        }
+        
+        // Initialize partners manager when DOM is loaded
+        document.addEventListener('DOMContentLoaded', () => {
+            new PartnersManager();
+        });
+    </script>
 </body>
 </html>
