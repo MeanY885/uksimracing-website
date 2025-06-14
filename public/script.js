@@ -299,7 +299,7 @@ class NewsManager {
         if (!item) return;
         
         const formattedDate = this.formatDate(item.timestamp);
-        const excerpt = this.createExcerpt(item.content, 400);
+        const excerpt = this.createExcerpt(item.content, 1200);
         
         // Special handling for live streams
         const liveIndicator = item.isLiveStream ? 
