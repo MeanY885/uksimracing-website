@@ -555,7 +555,8 @@ class StatsAnimation {
     constructor() {
         this.stats = [
             { element: document.getElementById('memberCount'), target: 2200, suffix: '+' },
-            { element: document.getElementById('yearsCount'), target: 5, suffix: '' }
+            { element: document.getElementById('yearsCount'), target: 5, suffix: '' },
+            { element: document.getElementById('prizesCount'), target: 5000, suffix: '+', prefix: '£' }
         ];
         this.init();
         this.loadLiveStats();
@@ -609,7 +610,8 @@ class StatsAnimation {
                     current = stat.target;
                     clearInterval(timer);
                 }
-                stat.element.textContent = Math.floor(current) + stat.suffix;
+                const prefix = stat.prefix || '';
+                stat.element.textContent = prefix + Math.floor(current) + stat.suffix;
             }, 16);
         });
     }
