@@ -1601,6 +1601,7 @@ body {
     height: 100vh;
     background-color: rgba(0, 0, 0, 0.95);
     backdrop-filter: blur(5px);
+    overflow-y: auto;
 }
 
 .video-modal-content {
