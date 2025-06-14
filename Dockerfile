@@ -9,6 +9,7 @@ COPY . .
 
 RUN mkdir -p data
 
-EXPOSE 2000
+# Support both internal (2000) and WAF mode (80) ports
+EXPOSE 2000 80
 
 CMD ["npm", "start"]

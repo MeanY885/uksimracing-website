@@ -9,7 +9,8 @@ const path = require('path');
 const cron = require('node-cron');
 
 const app = express();
-const PORT = process.env.PORT || 2000;
+// WAF/FortiAPPSec compatibility - support port 80 for auto-cert generation
+const PORT = process.env.PORT || (process.env.WAF_MODE === 'true' ? 80 : 2000);
 
 // Middleware
 app.use(cors());
@@ -1050,6 +1051,9 @@ app.get('/health', (req, res) => {
 // Start server
 app.listen(PORT, () => {
   console.log(`UKSimRacing website running on port ${PORT}`);
+  if (process.env.WAF_MODE === 'true') {
+    console.log('📡 WAF mode enabled - serving HTTP on port 80 for FortiAPPSec certificate generation');
+  }
 });
 
 // Graceful shutdown

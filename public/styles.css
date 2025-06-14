@@ -326,6 +326,28 @@ body {
     backdrop-filter: blur(10px);
     border-left: 1px solid rgba(0, 180, 216, 0.2);
     border-radius: 0 20px 20px 0;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(0, 180, 216, 0.5) rgba(42, 42, 42, 0.3);
+}
+
+/* Webkit scrollbar styling for hero text */
+.hero-text-content::-webkit-scrollbar {
+    width: 8px;
+}
+
+.hero-text-content::-webkit-scrollbar-track {
+    background: rgba(42, 42, 42, 0.3);
+    border-radius: 4px;
+}
+
+.hero-text-content::-webkit-scrollbar-thumb {
+    background: rgba(0, 180, 216, 0.5);
+    border-radius: 4px;
+}
+
+.hero-text-content::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 180, 216, 0.7);
 }
 
 .hero-image-content {
@@ -368,13 +390,10 @@ body {
     line-height: 1.6;
     margin-bottom: auto;
     flex: 1;
-    display: -webkit-box;
-    -webkit-line-clamp: none;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
     position: relative;
     z-index: 2;
+    overflow: visible;
 }
 
 .hero-news-meta {
@@ -459,11 +478,7 @@ body {
 }
 
 .subsection-title {
-    font-size: 1.8rem;
-    font-weight: 600;
-    text-align: center;
-    margin-bottom: 1rem;
-    color: var(--text-primary);
+    display: none;
 }
 
 .section-title {

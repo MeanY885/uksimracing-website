@@ -1,0 +1,40 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    container_name: uksimracing-app-waf
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - WAF_MODE=true
+      - PORT=80
+    env_file:
+      - .env
+    ports:
+      # Direct port 80 exposure for WAF/FortiAPPSec
+      - "80:80"
+    volumes:
+      - ./data:/app/data
+    networks:
+      - uksimracing-network
+      
+  discord-bot:
+    build: ./discord-bot
+    container_name: uksimracing-discord-bot-waf
+    restart: unless-stopped
+    environment:
+      - DISCORD_BOT_TOKEN=${DISCORD_BOT_TOKEN}
+      - WEBSITE_URL=http://app:80
+      - WEBHOOK_SECRET=${WEBHOOK_SECRET}
+      - TRIGGER_MENTION=UKSimRacingWebsite
+    env_file:
+      - .env
+    networks:
+      - uksimracing-network
+    depends_on:
+      - app
+
+networks:
+  uksimracing-network:
+    driver: bridge
