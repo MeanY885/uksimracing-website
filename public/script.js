@@ -572,9 +572,12 @@ class StatsAnimation {
             });
         });
         
-        const heroSection = document.getElementById('hero');
-        if (heroSection) {
-            observer.observe(heroSection);
+        const newsSection = document.getElementById('news');
+        if (newsSection) {
+            observer.observe(newsSection);
+        } else {
+            // If no section found, trigger animation immediately
+            this.animateStats();
         }
     }
     
