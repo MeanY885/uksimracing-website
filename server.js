@@ -1232,7 +1232,15 @@ app.put('/api/partners/reorder', (req, res) => {
 // Get leagues endpoint
 app.get('/api/leagues', (req, res) => {
   db.all(
-    'SELECT * FROM leagues WHERE is_active = 1 AND is_archived = 0 ORDER BY sort_order ASC, created_at ASC',
+    `SELECT * FROM leagues WHERE is_active = 1 AND is_archived = 0 
+     ORDER BY 
+       CASE registration_status 
+         WHEN 'closed' THEN 3
+         WHEN 'reserve' THEN 2
+         WHEN 'active' THEN 1
+         ELSE 4
+       END,
+       created_at DESC`,
     (err, rows) => {
       if (err) {
         res.status(500).json({ error: err.message });

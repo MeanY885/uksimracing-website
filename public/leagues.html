@@ -97,14 +97,25 @@
         <section class="leagues-section">
             <div class="container">
                 <div class="leagues-container">
-                    <div class="leagues-list" id="leaguesListContainer">
-                        <div class="loading">Loading leagues...</div>
+                    <!-- Row 1: League Selector -->
+                    <div class="leagues-selector-row">
+                        <div class="leagues-list" id="leaguesListContainer">
+                            <div class="loading">Loading leagues...</div>
+                        </div>
                     </div>
                     
-                    <div class="league-details" id="leagueDetailsContainer">
-                        <div class="league-details-placeholder">
+                    <!-- Row 2: League Information with Tabs -->
+                    <div class="leagues-info-row" id="leagueInfoContainer">
+                        <div class="league-info-placeholder">
                             <h3>Loading League Details</h3>
                             <p>Loading the most recent league information...</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Row 3: League Image -->
+                    <div class="leagues-image-row" id="leagueImageContainer">
+                        <div class="league-image-placeholder">
+                            <p>League image will appear here</p>
                         </div>
                     </div>
                 </div>
@@ -147,7 +158,8 @@
         class LeaguesManager {
             constructor() {
                 this.leaguesContainer = document.getElementById('leaguesListContainer');
-                this.detailsContainer = document.getElementById('leagueDetailsContainer');
+                this.infoContainer = document.getElementById('leagueInfoContainer');
+                this.imageContainer = document.getElementById('leagueImageContainer');
                 this.selectedLeague = null;
                 this.loadLeagues();
             }
@@ -198,7 +210,6 @@
                                 ${this.getStatusLabel(league.registration_status)}
                             </span>
                         </div>
-                        <p class="league-list-preview">${league.information.substring(0, 80)}${league.information.length > 80 ? '...' : ''}</p>
                     </div>
                 `;
             }
@@ -218,11 +229,12 @@
             }
             
             showLeagueDetails(league) {
-                this.detailsContainer.innerHTML = `
-                    <div class="league-details-content">
-                        <div class="league-details-header">
+                // Update info row with tabs and content
+                this.infoContainer.innerHTML = `
+                    <div class="league-info-content">
+                        <div class="league-info-header">
                             <h2>${league.name}</h2>
-                            <div class="league-details-nav">
+                            <div class="league-tabs-nav">
                                 <button class="nav-tab active" data-tab="information">Information</button>
                                 <button class="nav-tab" data-tab="handbook">Handbook</button>
                                 <button class="nav-tab" data-tab="standings">Standings</button>
@@ -230,51 +242,51 @@
                             </div>
                         </div>
                         
-                        <div class="league-details-body">
-                            <div class="league-details-left">
-                                <div class="league-details-tabs">
-                                    <div class="tab-content active" id="information">
-                                        <div class="league-information">
-                                            ${this.formatInformation(league.information)}
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="tab-content" id="handbook">
-                                        ${league.handbook_url ? `
-                                            <p>Access the complete league handbook for rules, regulations, and guidelines.</p>
-                                            <a href="${league.handbook_url}" class="league-action-btn" target="_blank" rel="noopener noreferrer">
-                                                View Handbook
-                                                <span class="external-link">→</span>
-                                            </a>
-                                        ` : '<p>Handbook not available for this league.</p>'}
-                                    </div>
-                                    
-                                    <div class="tab-content" id="standings">
-                                        ${league.standings_url ? `
-                                            <p>View the current championship standings and race results.</p>
-                                            <a href="${league.standings_url}" class="league-action-btn" target="_blank" rel="noopener noreferrer">
-                                                View Standings
-                                                <span class="external-link">→</span>
-                                            </a>
-                                        ` : '<p>Standings not available for this league.</p>'}
-                                    </div>
-                                    
-                                    <div class="tab-content" id="registration">
-                                        ${this.getRegistrationContent(league)}
-                                    </div>
+                        <div class="league-tabs-content">
+                            <div class="tab-content active" id="information">
+                                <div class="league-information">
+                                    ${this.formatInformation(league.information)}
                                 </div>
                             </div>
                             
-                            <div class="league-details-right">
-                                ${league.image_path ? `
-                                    <img src="${league.image_path}" alt="${league.name}" class="league-details-image">
-                                ` : `
-                                    <div class="league-details-placeholder-image">
-                                        <h4>${league.name}</h4>
-                                    </div>
-                                `}
+                            <div class="tab-content" id="handbook">
+                                ${league.handbook_url ? `
+                                    <p>Access the complete league handbook for rules, regulations, and guidelines.</p>
+                                    <a href="${league.handbook_url}" class="league-action-btn" target="_blank" rel="noopener noreferrer">
+                                        View Handbook
+                                        <span class="external-link">→</span>
+                                    </a>
+                                ` : '<p>Handbook not available for this league.</p>'}
+                            </div>
+                            
+                            <div class="tab-content" id="standings">
+                                ${league.standings_url ? `
+                                    <p>View the current championship standings and race results.</p>
+                                    <a href="${league.standings_url}" class="league-action-btn" target="_blank" rel="noopener noreferrer">
+                                        View Standings
+                                        <span class="external-link">→</span>
+                                    </a>
+                                ` : '<p>Standings not available for this league.</p>'}
+                            </div>
+                            
+                            <div class="tab-content" id="registration">
+                                ${this.getRegistrationContent(league)}
                             </div>
                         </div>
+                    </div>
+                `;
+                
+                // Update image row
+                this.imageContainer.innerHTML = `
+                    <div class="league-image-content">
+                        ${league.image_path ? `
+                            <img src="${league.image_path}" alt="${league.name}" class="league-main-image">
+                        ` : `
+                            <div class="league-image-placeholder">
+                                <h4>${league.name}</h4>
+                                <p>No image available</p>
+                            </div>
+                        `}
                     </div>
                 `;
                 
@@ -330,8 +342,8 @@
             }
             
             bindTabSwitching() {
-                const navTabs = this.detailsContainer.querySelectorAll('.nav-tab');
-                const tabContents = this.detailsContainer.querySelectorAll('.tab-content');
+                const navTabs = this.infoContainer.querySelectorAll('.nav-tab');
+                const tabContents = this.infoContainer.querySelectorAll('.tab-content');
                 
                 navTabs.forEach(tab => {
                     tab.addEventListener('click', () => {
