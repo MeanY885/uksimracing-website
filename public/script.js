@@ -326,26 +326,30 @@ class NewsManager {
         if (this.heroNews.length === 0) return;
         
         this.renderCurrentHero();
-        // Remove indicators since we're showing all cards at once
-        this.heroIndicators.innerHTML = '';
+        this.renderHeroIndicators();
+        this.startHeroRotation();
     }
     
     renderCurrentHero() {
         if (this.heroNews.length === 0) return;
         
-        // Show all hero cards at once instead of rotating
+        // Show 2 cards at a time, with rotation
+        const currentItem = this.heroNews[this.currentHeroIndex];
+        const nextIndex = (this.currentHeroIndex + 1) % this.heroNews.length;
+        const nextItem = this.heroNews.length > 1 ? this.heroNews[nextIndex] : null;
+        
         let layoutClass = 'hero-content-single';
         let cardHTML = '';
         
         if (this.heroNews.length === 1) {
             layoutClass = 'hero-content-single';
-            cardHTML = this.createHeroCard(this.heroNews[0], 'single');
-        } else if (this.heroNews.length === 2) {
+            cardHTML = this.createHeroCard(currentItem, 'single');
+        } else {
             layoutClass = 'hero-content-dual';
-            cardHTML = this.heroNews.map(item => this.createHeroCard(item, 'dual')).join('');
-        } else if (this.heroNews.length >= 3) {
-            layoutClass = 'hero-content-grid';
-            cardHTML = this.heroNews.slice(0, 4).map(item => this.createHeroCard(item, 'grid')).join('');
+            cardHTML = this.createHeroCard(currentItem, 'dual');
+            if (nextItem) {
+                cardHTML += this.createHeroCard(nextItem, 'dual');
+            }
         }
         
         this.heroNewsCard.innerHTML = `
@@ -422,9 +426,18 @@ class NewsManager {
     }
     
     renderHeroIndicators() {
-        this.heroIndicators.innerHTML = this.heroNews.map((_, index) => 
-            `<div class="hero-indicator ${index === this.currentHeroIndex ? 'active' : ''}" 
-                  onclick="newsManager.goToHero(${index})"></div>`
+        if (this.heroNews.length <= 1) {
+            this.heroIndicators.innerHTML = '';
+            return;
+        }
+        
+        // Create indicators for pairs when showing dual layout
+        const totalPairs = Math.ceil(this.heroNews.length / 2);
+        const currentPair = Math.floor(this.currentHeroIndex / 2);
+        
+        this.heroIndicators.innerHTML = Array.from({length: totalPairs}, (_, pairIndex) => 
+            `<div class="hero-indicator ${pairIndex === currentPair ? 'active' : ''}" 
+                  onclick="newsManager.goToHero(${pairIndex * 2})"></div>`
         ).join('');
     }
     
@@ -438,14 +451,22 @@ class NewsManager {
     }
     
     nextHero() {
-        this.currentHeroIndex = (this.currentHeroIndex + 1) % this.heroNews.length;
+        if (this.heroNews.length <= 1) return;
+        
+        // Move by 2 when showing dual layout, by 1 when single
+        const step = this.heroNews.length > 1 ? 2 : 1;
+        this.currentHeroIndex = (this.currentHeroIndex + step) % this.heroNews.length;
         this.renderCurrentHero();
         this.renderHeroIndicators();
         this.resetHeroRotation();
     }
     
     previousHero() {
-        this.currentHeroIndex = (this.currentHeroIndex - 1 + this.heroNews.length) % this.heroNews.length;
+        if (this.heroNews.length <= 1) return;
+        
+        // Move by 2 when showing dual layout, by 1 when single  
+        const step = this.heroNews.length > 1 ? 2 : 1;
+        this.currentHeroIndex = (this.currentHeroIndex - step + this.heroNews.length) % this.heroNews.length;
         this.renderCurrentHero();
         this.renderHeroIndicators();
         this.resetHeroRotation();
