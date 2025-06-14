@@ -217,10 +217,7 @@ class NewsManager {
         document.getElementById('modalNewsDate').textContent = formattedDate;
         
         // Format content with proper paragraphs and line breaks
-        const formattedContent = item.content
-            .replace(/\n\s*\n/g, '</p><p>') // Double line breaks become new paragraphs
-            .replace(/\n/g, '<br>'); // Single line breaks become <br>
-        document.getElementById('modalNewsContent').innerHTML = `<p>${formattedContent}</p>`;
+        document.getElementById('modalNewsContent').innerHTML = this.formatContentWithParagraphs(item.content);
         
         const imageContainer = document.getElementById('modalNewsImage');
         if (item.image_url) {
@@ -239,6 +236,32 @@ class NewsManager {
     createExcerpt(content, maxLength) {
         if (content.length <= maxLength) return content;
         return content.substring(0, maxLength).trim() + '...';
+    }
+    
+    formatContentWithParagraphs(content) {
+        if (!content) return '';
+        
+        // Clean up the content first
+        let cleanContent = content.trim();
+        
+        // Split content by double line breaks OR single line breaks that create clear paragraph breaks
+        // Handle both \n\n and cases where Discord sends single \n between paragraphs
+        const paragraphs = cleanContent.split(/\n\n+|\n(?=\w)/);
+        
+        // Convert each paragraph
+        const result = paragraphs
+            .map(paragraph => {
+                const trimmed = paragraph.trim();
+                if (!trimmed) return '';
+                
+                // Replace remaining single line breaks with <br> for line breaks within paragraphs
+                const formatted = trimmed.replace(/\n/g, '<br>');
+                return `<p>${formatted}</p>`;
+            })
+            .filter(p => p) // Remove empty paragraphs
+            .join('');
+            
+        return result || `<p>${cleanContent}</p>`;
     }
     
     formatDate(timestamp) {
@@ -324,7 +347,7 @@ class NewsManager {
                 </div>
                 <div class="hero-text-content">
                     <h2 class="hero-news-title">${item.title}</h2>
-                    <p class="hero-news-excerpt">${excerpt}</p>
+                    <div class="hero-news-excerpt">${this.formatContentWithParagraphs(excerpt)}</div>
                     <div class="hero-news-meta">
                         <span class="hero-news-author">By ${item.author}</span>
                         <span class="hero-news-date">${formattedDate}</span>
