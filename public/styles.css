@@ -18,22 +18,27 @@
     --gradient: linear-gradient(135deg, #00b4d8 0%, #0077b6 100%);
 }
 
+html {
+    font-size: 14px; /* Base font size for better scaling */
+}
+
 body {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     background-color: var(--primary-bg);
     color: var(--text-primary);
     line-height: 1.6;
+    font-size: 1rem; /* 14px base */
 }
 
 .container {
-    max-width: 1400px;
+    max-width: 1200px; /* Reduced from 1400px */
     margin: 0 auto;
-    padding: 0 40px;
+    padding: 0 30px; /* Reduced padding */
 }
 
 .news-section-featured .container {
-    max-width: 1400px;
-    padding: 0 60px;
+    max-width: 1200px; /* Reduced from 1400px */
+    padding: 0 40px; /* Reduced padding */
 }
 
 /* Header Styles */
@@ -331,16 +336,16 @@ body {
 }
 
 .hero-news-title {
-    font-size: 2rem;
+    font-size: 1.75rem; /* Reduced from 2rem */
     font-weight: 700;
-    margin-bottom: 1.5rem;
+    margin-bottom: 1.25rem; /* Reduced margin */
     color: var(--text-primary);
     line-height: 1.2;
 }
 
 .hero-news-excerpt {
     color: var(--text-secondary);
-    font-size: 1.1rem;
+    font-size: 1rem; /* Reduced from 1.1rem */
     line-height: 1.7;
     margin-bottom: 2rem;
     display: -webkit-box;
