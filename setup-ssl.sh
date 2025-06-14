@@ -33,7 +33,7 @@ fi
 
 # Request staging certificates first (for testing)
 echo "🧪 Requesting staging certificates..."
-docker-compose -f docker-compose.prod.yml run --rm certbot certonly --webroot --webroot-path=/var/www/html --email chris@uksimracing.co.uk --agree-tos --no-eff-email --staging -d uksimracing.co.uk -d www.uksimracing.co.uk
+docker-compose -f docker-compose.prod.yml run --rm certbot certonly --webroot --webroot-path=/var/www/certbot --email chris@uksimracing.co.uk --agree-tos --no-eff-email --staging -d uksimracing.co.uk -d www.uksimracing.co.uk
 
 # Check if staging certificates were created successfully
 if [ $? -eq 0 ]; then

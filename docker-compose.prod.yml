@@ -27,6 +27,7 @@ services:
       - ./ssl:/etc/nginx/ssl
       - certbot-etc:/etc/letsencrypt
       - certbot-var:/var/lib/letsencrypt
+      - ./web-root:/var/www/certbot
     depends_on:
       - app
     networks:
@@ -38,10 +39,10 @@ services:
     volumes:
       - certbot-etc:/etc/letsencrypt
       - certbot-var:/var/lib/letsencrypt
-      - ./web-root:/var/www/html
+      - ./web-root:/var/www/certbot
     depends_on:
       - nginx
-    command: certonly --webroot --webroot-path=/var/www/html --email chris@uksimracing.co.uk --agree-tos --no-eff-email --staging -d uksimracing.co.uk -d www.uksimracing.co.uk
+    command: certonly --webroot --webroot-path=/var/www/certbot --email chris@uksimracing.co.uk --agree-tos --no-eff-email --staging -d uksimracing.co.uk -d www.uksimracing.co.uk
     networks:
       - uksimracing-network
 
