@@ -7,6 +7,9 @@ const cors = require('cors');
 const bodyParser = require('body-parser');
 const path = require('path');
 const cron = require('node-cron');
+const axios = require('axios');
+const fs = require('fs-extra');
+const crypto = require('crypto');
 
 const app = express();
 // WAF/FortiAPPSec compatibility - default to port 80 for HTTP/HTTPS serving
@@ -36,6 +39,7 @@ function initDatabase() {
     timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
     discord_message_id TEXT UNIQUE,
     image_url TEXT,
+    local_image_path TEXT,
     sort_order INTEGER DEFAULT 0
   )`);
   
@@ -107,9 +111,66 @@ function initDatabase() {
     }
   });
   
+  // Create images directory if it doesn't exist
+  const imagesDir = path.join(__dirname, 'public', 'images');
+  fs.ensureDirSync(imagesDir);
+  console.log('📁 Images directory ready:', imagesDir);
+  
+  // Add local_image_path column if it doesn't exist (for existing databases)
+  db.run(`ALTER TABLE news ADD COLUMN local_image_path TEXT`, (err) => {
+    // This will error if column already exists, which is fine
+    if (err && !err.message.includes('duplicate column name')) {
+      console.log('Note: local_image_path column may already exist');
+    }
+  });
+  
   // Start automatic YouTube sync on app startup
   console.log('🎬 Setting up automatic YouTube sync...');
   setupAutoYouTubeSync();
+}
+
+// Image download function
+async function downloadAndSaveImage(imageUrl, messageId) {
+  try {
+    if (!imageUrl) return null;
+    
+    console.log('📥 Downloading image from:', imageUrl);
+    
+    // Generate a unique filename
+    const timestamp = Date.now();
+    const hash = crypto.createHash('md5').update(messageId + timestamp).digest('hex');
+    const extension = path.extname(new URL(imageUrl).pathname) || '.png';
+    const filename = `news_${hash}${extension}`;
+    const filepath = path.join(__dirname, 'public', 'images', filename);
+    
+    // Download the image
+    const response = await axios({
+      url: imageUrl,
+      method: 'GET',
+      responseType: 'stream',
+      timeout: 30000, // 30 second timeout
+      headers: {
+        'User-Agent': 'UKSimRacing-Bot/1.0'
+      }
+    });
+    
+    // Save the image
+    const writer = fs.createWriteStream(filepath);
+    response.data.pipe(writer);
+    
+    return new Promise((resolve, reject) => {
+      writer.on('finish', () => {
+        const localPath = `/images/${filename}`;
+        console.log('✅ Image saved successfully:', localPath);
+        resolve(localPath);
+      });
+      writer.on('error', reject);
+    });
+    
+  } catch (error) {
+    console.error('❌ Error downloading image:', error.message);
+    return null;
+  }
 }
 
 // Automatic YouTube synchronization function
@@ -267,7 +328,7 @@ app.get('/videos', (req, res) => {
 
 
 // Discord webhook endpoint
-app.post('/webhook/discord', (req, res) => {
+app.post('/webhook/discord', async (req, res) => {
   console.log('🔗 Webhook received');
   console.log('Headers:', req.headers);
   console.log('Body:', req.body);
@@ -297,15 +358,22 @@ app.post('/webhook/discord', (req, res) => {
   // Get image URL from attachments if available
   const imageUrl = attachments && attachments[0] ? attachments[0].url : null;
   
+  // Download and save image locally if present
+  let localImagePath = null;
+  if (imageUrl) {
+    localImagePath = await downloadAndSaveImage(imageUrl, message_id);
+  }
+  
   db.run(
-    'INSERT INTO news (title, content, author, discord_message_id, image_url) VALUES (?, ?, ?, ?, ?)',
-    [title, body, author, message_id, imageUrl],
+    'INSERT INTO news (title, content, author, discord_message_id, image_url, local_image_path) VALUES (?, ?, ?, ?, ?, ?)',
+    [title, body, author, message_id, imageUrl, localImagePath],
     function(err) {
       if (err) {
         console.error('Error inserting news:', err.message);
         res.status(500).json({ error: 'Failed to save news' });
         return;
       }
+      console.log(`✅ News saved with ${localImagePath ? 'local' : 'no'} image: ${title}`);
       res.json({ success: true, id: this.lastID });
     }
   );
@@ -1040,6 +1108,66 @@ app.post('/api/sync-youtube', async (req, res) => {
   } catch (error) {
     console.error('Error syncing YouTube videos:', error);
     res.status(500).json({ error: 'Failed to sync YouTube videos' });
+  }
+});
+
+// Utility endpoint to download existing images
+app.post('/api/download-existing-images', async (req, res) => {
+  const authValidation = validateAdminToken(req.headers.authorization);
+  
+  if (!authValidation.valid) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  
+  try {
+    // Get all news items that have image_url but no local_image_path
+    const newsItems = await new Promise((resolve, reject) => {
+      db.all(
+        'SELECT id, discord_message_id, image_url FROM news WHERE image_url IS NOT NULL AND (local_image_path IS NULL OR local_image_path = "")',
+        [],
+        (err, rows) => {
+          if (err) reject(err);
+          else resolve(rows);
+        }
+      );
+    });
+    
+    console.log(`📥 Found ${newsItems.length} images to download`);
+    let downloadedCount = 0;
+    let failedCount = 0;
+    
+    for (const item of newsItems) {
+      const localPath = await downloadAndSaveImage(item.image_url, item.discord_message_id);
+      
+      if (localPath) {
+        // Update the database with the local path
+        await new Promise((resolve, reject) => {
+          db.run(
+            'UPDATE news SET local_image_path = ? WHERE id = ?',
+            [localPath, item.id],
+            (err) => {
+              if (err) reject(err);
+              else resolve();
+            }
+          );
+        });
+        downloadedCount++;
+      } else {
+        failedCount++;
+      }
+    }
+    
+    res.json({ 
+      success: true, 
+      total: newsItems.length,
+      downloaded: downloadedCount,
+      failed: failedCount,
+      message: `Downloaded ${downloadedCount} images, ${failedCount} failed` 
+    });
+    
+  } catch (error) {
+    console.error('Error downloading existing images:', error);
+    res.status(500).json({ error: 'Failed to download images' });
   }
 });
 

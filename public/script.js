@@ -139,8 +139,19 @@ class NewsManager {
         const formattedDate = this.formatDate(item.timestamp);
         const excerpt = this.createExcerpt(item.content, 150);
         
+        // Create image element with error handling - prefer local images
+        let imageHTML = '';
+        const imageSource = item.local_image_path || item.image_url;
+        
+        if (imageSource) {
+            imageHTML = `<img src="${imageSource}" alt="${item.title}" class="news-image" onerror="this.style.display='none'; this.parentNode.querySelector('.news-image-placeholder').style.display='flex';">
+                        <div class="news-image-placeholder" style="display: none;">📰</div>`;
+        } else {
+            imageHTML = `<div class="news-image-placeholder">📰</div>`;
+        }
+        
         card.innerHTML = `
-            ${item.image_url ? `<img src="${item.image_url}" alt="${item.title}" class="news-image">` : ''}
+            ${imageHTML}
             <div class="news-content">
                 <h3 class="news-title">${item.title}</h3>
                 <p class="news-excerpt">${excerpt}</p>
@@ -220,8 +231,9 @@ class NewsManager {
         document.getElementById('modalNewsContent').innerHTML = this.formatContentWithParagraphs(item.content);
         
         const imageContainer = document.getElementById('modalNewsImage');
-        if (item.image_url) {
-            imageContainer.innerHTML = `<img src="${item.image_url}" alt="${item.title}" class="news-modal-image">`;
+        const modalImageSource = item.local_image_path || item.image_url;
+        if (modalImageSource) {
+            imageContainer.innerHTML = `<img src="${modalImageSource}" alt="${item.title}" class="news-modal-image">`;
         } else {
             // If no image, make text full width
             modal.querySelector('.news-modal-body').style.gridTemplateColumns = '1fr';
@@ -329,12 +341,15 @@ class NewsManager {
             `<div style="position: absolute; top: 15px; left: 15px; background: red; color: white; padding: 0.5rem 1rem; border-radius: 20px; font-weight: 600; font-size: 0.9rem; z-index: 5;">🔴 LIVE</div>` : 
             '';
         
+        // Use local image if available, fallback to original URL
+        const heroImageSource = item.local_image_path || item.image_url;
+        
         this.heroNewsCard.innerHTML = `
             <div class="hero-content">
                 <div class="hero-image-content" style="position: relative;">
                     ${liveIndicator}
-                    ${item.image_url ? 
-                        `<img src="${item.image_url}" alt="${item.title}" class="hero-news-image">` : 
+                    ${heroImageSource ? 
+                        `<img src="${heroImageSource}" alt="${item.title}" class="hero-news-image">` : 
                         `<div class="hero-placeholder">
                             <div style="font-size: 4rem; color: var(--accent-color);">${item.isLiveStream ? '📺' : '📰'}</div>
                             <div style="color: var(--text-secondary); margin-top: 1rem;">${item.isLiveStream ? 'Live Stream' : 'News Article'}</div>
