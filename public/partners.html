@@ -193,11 +193,14 @@
                 return `
                     <div class="partner-card ${isFeatured ? 'featured' : ''}">
                         <div class="partner-header">
-                            <h2>${partner.name}</h2>
-                            <span class="partner-badge">${partner.partner_type}</span>
+                            ${partner.logo_path ? `<img src="${partner.logo_path}" alt="${partner.name}" class="partner-logo">` : ''}
+                            <div class="partner-info">
+                                <h2>${partner.name}</h2>
+                                <span class="partner-badge">${partner.partner_type || 'Partner'}</span>
+                            </div>
                         </div>
                         <div class="partner-content">
-                            <p>${partner.description}</p>
+                            ${partner.description ? `<p>${partner.description}</p>` : ''}
                             
                             ${benefits.length > 0 ? `
                                 <div class="partner-benefits">

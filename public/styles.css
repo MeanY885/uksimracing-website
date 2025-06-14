@@ -1927,6 +1927,96 @@ main {
     font-weight: 500;
 }
 
+/* Admin Modal Styles */
+.admin-modal {
+    display: block;
+    position: fixed;
+    z-index: 1001;
+    left: 0;
+    top: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(0, 0, 0, 0.95);
+    backdrop-filter: blur(5px);
+}
+
+.admin-modal-content {
+    background: var(--primary-bg);
+    margin: 5% auto;
+    padding: 2rem;
+    width: 80%;
+    max-width: 600px;
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+    position: relative;
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+.admin-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.admin-form label {
+    color: var(--text-primary);
+    font-weight: 500;
+    margin-bottom: 0.25rem;
+}
+
+.admin-form input,
+.admin-form textarea,
+.admin-form select {
+    width: 100%;
+    padding: 1rem;
+    background: var(--secondary-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    color: var(--text-primary);
+    font-size: 1rem;
+    font-family: inherit;
+}
+
+.admin-form input:focus,
+.admin-form textarea:focus,
+.admin-form select:focus {
+    outline: none;
+    border-color: var(--accent-color);
+}
+
+.file-input {
+    padding: 0.75rem !important;
+    cursor: pointer;
+}
+
+.form-help {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    margin-top: -0.5rem;
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+}
+
+.checkbox-label input[type="checkbox"] {
+    width: auto;
+    margin: 0;
+}
+
+.form-buttons {
+    display: flex;
+    gap: 1rem;
+    justify-content: flex-end;
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border-color);
+}
+
 .add-video-form input,
 .add-video-form textarea {
     padding: 1rem;
@@ -2034,6 +2124,36 @@ main {
     margin-bottom: 1.5rem;
     flex-wrap: wrap;
     gap: 1rem;
+}
+
+.partner-info {
+    flex: 1;
+}
+
+.partner-logo {
+    width: 120px;
+    height: 80px;
+    object-fit: contain;
+    border-radius: 8px;
+    background: var(--secondary-bg);
+    padding: 0.5rem;
+    margin-right: 1rem;
+}
+
+.partner-logo-admin {
+    width: 60px;
+    height: 40px;
+    object-fit: contain;
+    border-radius: 4px;
+    background: var(--secondary-bg);
+    padding: 0.25rem;
+    margin-right: 0.75rem;
+}
+
+.admin-partner-card .partner-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
 }
 
 .partner-header h2 {

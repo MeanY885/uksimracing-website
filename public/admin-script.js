@@ -1043,15 +1043,16 @@ class AdminManager {
         container.innerHTML = partners.map(partner => `
             <div class="partner-card admin-partner-card" data-partner-id="${partner.id}">
                 <div class="partner-header">
-                    <h3>${partner.name}</h3>
-                    <span class="partner-badge ${partner.is_featured ? 'featured' : ''}">${partner.partner_type}</span>
+                    ${partner.logo_path ? `<img src="${partner.logo_path}" alt="${partner.name}" class="partner-logo-admin">` : ''}
+                    <div class="partner-info">
+                        <h3>${partner.name}</h3>
+                        <span class="partner-badge ${partner.is_featured ? 'featured' : ''}">${partner.partner_type || 'Partner'}</span>
+                    </div>
                 </div>
                 <div class="partner-content">
-                    <p>${partner.description}</p>
                     <div class="partner-url">
                         <strong>URL:</strong> <a href="${partner.url}" target="_blank" rel="noopener noreferrer">${partner.url}</a>
                     </div>
-                    ${partner.benefits ? `<div class="partner-benefits-preview"><strong>Benefits:</strong> ${partner.benefits.split('\n')[0]}${partner.benefits.split('\n').length > 1 ? '...' : ''}</div>` : ''}
                 </div>
                 <div class="admin-controls-inline">
                     <button class="btn-small btn-edit" onclick="adminManager.editPartner(${partner.id})">Edit</button>
@@ -1076,15 +1077,16 @@ class AdminManager {
             <div class="admin-modal-content">
                 <h3>Add New Partner</h3>
                 <form id="addPartnerForm" class="admin-form">
-                    <input type="text" id="partnerName" placeholder="Partner Name" required>
-                    <input type="text" id="partnerType" placeholder="Partner Type (e.g., Featured Partner)" value="Partner">
-                    <input type="url" id="partnerUrl" placeholder="Partner URL" required>
-                    <textarea id="partnerDescription" placeholder="Partner Description" rows="4" required></textarea>
-                    <textarea id="partnerBenefits" placeholder="Benefits (one per line)" rows="4"></textarea>
-                    <textarea id="partnerInstructions" placeholder="Instructions for supporting UKSR" rows="3"></textarea>
-                    <label class="checkbox-label">
-                        <input type="checkbox" id="partnerFeatured"> Featured Partner
-                    </label>
+                    <label for="partnerName">Partner Name:</label>
+                    <input type="text" id="partnerName" placeholder="Enter partner name" required>
+                    
+                    <label for="partnerLogo">Partner Logo:</label>
+                    <input type="file" id="partnerLogo" accept="image/*" class="file-input">
+                    <small class="form-help">Upload partner logo (JPG, PNG, GIF)</small>
+                    
+                    <label for="partnerUrl">Partner URL:</label>
+                    <input type="url" id="partnerUrl" placeholder="https://partner-website.com" required>
+                    
                     <div class="form-buttons">
                         <button type="button" class="btn btn-outline" onclick="this.closest('.admin-modal').remove()">Cancel</button>
                         <button type="submit" class="btn">Add Partner</button>
@@ -1103,30 +1105,36 @@ class AdminManager {
     }
     
     async addPartner() {
-        const partnerData = {
-            name: document.getElementById('partnerName').value,
-            partner_type: document.getElementById('partnerType').value,
-            url: document.getElementById('partnerUrl').value,
-            description: document.getElementById('partnerDescription').value,
-            benefits: document.getElementById('partnerBenefits').value,
-            instructions: document.getElementById('partnerInstructions').value,
-            is_featured: document.getElementById('partnerFeatured').checked
-        };
+        const name = document.getElementById('partnerName').value;
+        const url = document.getElementById('partnerUrl').value;
+        const logoFile = document.getElementById('partnerLogo').files[0];
+        
+        if (!name || !url) {
+            alert('Partner name and URL are required');
+            return;
+        }
         
         try {
+            const formData = new FormData();
+            formData.append('name', name);
+            formData.append('url', url);
+            
+            if (logoFile) {
+                formData.append('logo', logoFile);
+            }
+            
             const response = await fetch('/api/partners', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
                     'Authorization': `Bearer ${this.authToken}`
                 },
-                body: JSON.stringify(partnerData)
+                body: formData
             });
             
             const data = await response.json();
             
             if (response.ok) {
-                this.loadPartners(); // Reload partners
+                this.loadPartners();
                 alert('Partner added successfully!');
             } else {
                 alert(data.error || 'Failed to add partner');

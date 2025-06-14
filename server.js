@@ -10,6 +10,7 @@ const cron = require('node-cron');
 const axios = require('axios');
 const fs = require('fs-extra');
 const crypto = require('crypto');
+const multer = require('multer');
 
 const app = express();
 // WAF/FortiAPPSec compatibility - default to port 80 for HTTP/HTTPS serving
@@ -19,6 +20,35 @@ const PORT = process.env.PORT || 80;
 app.use(cors());
 app.use(bodyParser.json());
 app.use(express.static('public'));
+
+// Multer setup for file uploads
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadDir = path.join(__dirname, 'public', 'uploads', 'partners');
+    fs.ensureDirSync(uploadDir);
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, 'partner-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const upload = multer({ 
+  storage: storage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = /jpeg|jpg|png|gif|webp/;
+    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+    const mimetype = allowedTypes.test(file.mimetype);
+    
+    if (mimetype && extname) {
+      return cb(null, true);
+    } else {
+      cb(new Error('Only image files (JPEG, PNG, GIF, WebP) are allowed'));
+    }
+  }
+});
 
 // Database setup
 const db = new sqlite3.Database('./data/news.db', (err) => {
@@ -73,8 +103,9 @@ function initDatabase() {
   db.run(`CREATE TABLE IF NOT EXISTS partners (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
-    description TEXT NOT NULL,
+    description TEXT,
     url TEXT NOT NULL,
+    logo_path TEXT,
     partner_type TEXT DEFAULT 'partner',
     benefits TEXT,
     instructions TEXT,
@@ -84,6 +115,11 @@ function initDatabase() {
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     created_by TEXT
   )`);
+  
+  // Add logo_path column if it doesn't exist (for existing databases)
+  db.run(`ALTER TABLE partners ADD COLUMN logo_path TEXT`, (err) => {
+    // This will error if column already exists, which is fine
+  });
   
   // Add sort_order column if it doesn't exist (for existing databases)
   db.run(`ALTER TABLE news ADD COLUMN sort_order INTEGER DEFAULT 0`, (err) => {
@@ -1034,23 +1070,25 @@ app.get('/api/partners', (req, res) => {
 });
 
 // Add partner endpoint
-app.post('/api/partners', (req, res) => {
+app.post('/api/partners', upload.single('logo'), (req, res) => {
   const authValidation = validateAdminToken(req.headers.authorization);
   
   if (!authValidation.valid) {
     return res.status(401).json({ error: 'Authentication required' });
   }
   
-  const { name, description, url, partner_type, benefits, instructions, is_featured } = req.body;
+  const { name, url } = req.body;
   
-  if (!name || !description || !url) {
-    return res.status(400).json({ error: 'Name, description, and URL are required' });
+  if (!name || !url) {
+    return res.status(400).json({ error: 'Name and URL are required' });
   }
   
+  const logoPath = req.file ? `/uploads/partners/${req.file.filename}` : null;
+  
   db.run(
-    `INSERT INTO partners (name, description, url, partner_type, benefits, instructions, is_featured, created_by) 
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    [name, description, url, partner_type || 'Partner', benefits || '', instructions || '', is_featured ? 1 : 0, authValidation.username],
+    `INSERT INTO partners (name, url, logo_path, description, partner_type, created_by) 
+     VALUES (?, ?, ?, ?, ?, ?)`,
+    [name, url, logoPath, `Partner: ${name}`, 'Partner', authValidation.username],
     function(err) {
       if (err) {
         res.status(500).json({ error: err.message });
@@ -1060,12 +1098,8 @@ app.post('/api/partners', (req, res) => {
       res.json({ 
         id: this.lastID,
         name,
-        description,
         url,
-        partner_type,
-        benefits,
-        instructions,
-        is_featured: is_featured ? 1 : 0
+        logo_path: logoPath
       });
     }
   );
