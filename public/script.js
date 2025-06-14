@@ -333,12 +333,31 @@ class NewsManager {
         const item = this.heroNews[this.currentHeroIndex];
         if (!item) return;
         
-        // Get second image from next hero item if available
-        const secondItem = this.heroNews[(this.currentHeroIndex + 1) % this.heroNews.length];
-        const hasSecondImage = secondItem && this.heroNews.length > 1;
+        // Get second item if available for two-card layout
+        const secondItem = this.heroNews.length > 1 ? this.heroNews[(this.currentHeroIndex + 1) % this.heroNews.length] : null;
+        const showTwoCards = secondItem && this.heroNews.length > 1;
         
+        if (showTwoCards) {
+            // Two-card layout
+            this.heroNewsCard.innerHTML = `
+                <div class="hero-content-dual">
+                    ${this.createHeroCard(item, 'left')}
+                    ${this.createHeroCard(secondItem, 'right')}
+                </div>
+            `;
+        } else {
+            // Single card layout
+            this.heroNewsCard.innerHTML = `
+                <div class="hero-content-single">
+                    ${this.createHeroCard(item, 'single')}
+                </div>
+            `;
+        }
+    }
+    
+    createHeroCard(item, position) {
         const formattedDate = this.formatDate(item.timestamp);
-        const excerpt = this.createExcerpt(item.content, 1200);
+        const excerpt = this.createExcerpt(item.content, position === 'single' ? 1200 : 600);
         
         // Special handling for live streams
         const liveIndicator = item.isLiveStream ? 
@@ -346,53 +365,35 @@ class NewsManager {
             '';
         
         // Use local image if available, fallback to original URL
-        const heroImageSource = item.local_image_path || item.image_url;
-        const secondImageSource = hasSecondImage ? (secondItem.local_image_path || secondItem.image_url) : null;
+        const imageSource = item.local_image_path || item.image_url;
         
-        // Create images HTML
-        let imagesHTML = '';
-        if (heroImageSource) {
-            if (hasSecondImage && secondImageSource) {
-                // Two images side by side
-                imagesHTML = `
-                    <img src="${heroImageSource}" alt="${item.title}" class="hero-news-image">
-                    <img src="${secondImageSource}" alt="${secondItem.title}" class="hero-image-secondary">
-                `;
-            } else {
-                // Single image, centered
-                imagesHTML = `<img src="${heroImageSource}" alt="${item.title}" class="hero-news-image single">`;
-            }
-        } else {
-            // Placeholder
-            imagesHTML = `
-                <div class="hero-placeholder" style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;">
-                    <div style="font-size: 4rem; color: var(--accent-color);">${item.isLiveStream ? '📺' : '📰'}</div>
-                    <div style="color: var(--text-secondary); margin-top: 1rem;">${item.isLiveStream ? 'Live Stream' : 'News Article'}</div>
-                </div>
-            `;
-        }
-        
-        this.heroNewsCard.innerHTML = `
-            <div class="hero-content">
-                <div class="hero-image-content" style="position: relative;">
+        const cardHTML = `
+            <div class="hero-card ${position}" data-item-id="${item.id}">
+                <div class="hero-card-image-content" style="position: relative;">
                     ${liveIndicator}
-                    ${imagesHTML}
+                    ${imageSource ? 
+                        `<img src="${imageSource}" alt="${item.title}" class="hero-card-image">` : 
+                        `<div class="hero-placeholder">
+                            <div style="font-size: 3rem; color: var(--accent-color);">${item.isLiveStream ? '📺' : '📰'}</div>
+                            <div style="color: var(--text-secondary); margin-top: 1rem;">${item.isLiveStream ? 'Live Stream' : 'News Article'}</div>
+                        </div>`
+                    }
                     ${item.isLiveStream ? 
-                        `<div style="position: absolute; top: 50%; left: 25%; transform: translate(-50%, -50%); width: 80px; height: 80px; background: rgba(255, 0, 0, 0.8); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 2rem; pointer-events: none;">▶</div>` : 
+                        `<div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 60px; height: 60px; background: rgba(255, 0, 0, 0.8); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 1.5rem; pointer-events: none;">▶</div>` : 
                         ''
                     }
                 </div>
-                <div class="hero-text-content">
-                    <h2 class="hero-news-title">${item.title}</h2>
-                    <div class="hero-news-excerpt">${this.formatContentWithParagraphs(excerpt)}</div>
-                    <div class="hero-news-meta">
-                        <span class="hero-news-author">By ${item.author}</span>
-                        <span class="hero-news-date">${formattedDate}</span>
+                <div class="hero-card-text-content">
+                    <h3 class="hero-card-title">${item.title}</h3>
+                    <div class="hero-card-excerpt">${this.formatContentWithParagraphs(excerpt)}</div>
+                    <div class="hero-card-meta">
+                        <span class="hero-card-author">By ${item.author}</span>
+                        <span class="hero-card-date">${formattedDate}</span>
                     </div>
                     ${item.isLiveStream ? 
-                        `<div style="margin-top: 1.5rem;">
-                            <button style="background: red; color: white; border: none; padding: 1rem 2rem; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 1.1rem;" onclick="window.open('https://www.youtube.com/watch?v=${item.youtubeId}', '_blank')">
-                                🔴 Watch Live on YouTube
+                        `<div style="margin-top: 1rem;">
+                            <button style="background: red; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 0.9rem;" onclick="event.stopPropagation(); window.open('https://www.youtube.com/watch?v=${item.youtubeId}', '_blank')">
+                                🔴 Watch Live
                             </button>
                         </div>` : 
                         ''
@@ -401,13 +402,23 @@ class NewsManager {
             </div>
         `;
         
-        // Add click handler - different for live streams vs regular news
-        this.heroNewsCard.style.cursor = 'pointer';
-        if (item.isLiveStream) {
-            this.heroNewsCard.onclick = () => window.open(`https://www.youtube.com/watch?v=${item.youtubeId}`, '_blank');
-        } else {
-            this.heroNewsCard.onclick = () => this.showNewsModal(item);
-        }
+        // Add click handler after creating the element
+        setTimeout(() => {
+            const cardElement = this.heroNewsCard.querySelector(`[data-item-id="${item.id}"]`);
+            if (cardElement) {
+                cardElement.style.cursor = 'pointer';
+                cardElement.onclick = (e) => {
+                    if (e.target.tagName === 'BUTTON') return; // Don't interfere with button clicks
+                    if (item.isLiveStream) {
+                        window.open(`https://www.youtube.com/watch?v=${item.youtubeId}`, '_blank');
+                    } else {
+                        this.showNewsModal(item);
+                    }
+                };
+            }
+        }, 10);
+        
+        return cardHTML;
     }
     
     renderHeroIndicators() {
