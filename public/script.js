@@ -52,14 +52,14 @@ class NewsManager {
             
             // If there's a live stream, it takes priority in hero section
             if (liveStreamData) {
-                this.heroNews = [liveStreamData, ...news.slice(0, Math.min(2, news.length))];
+                this.heroNews = [liveStreamData, ...news.slice(0, Math.min(3, news.length))];
             } else {
-                // Hero shows the first 3 items for rotation
-                this.heroNews = news.slice(0, Math.min(3, news.length));
+                // Hero shows the first 4 items
+                this.heroNews = news.slice(0, Math.min(4, news.length));
             }
             
             // More Stories shows up to 6 cards from the remaining news
-            const regularNewsStart = liveStreamData ? 2 : 3;
+            const regularNewsStart = liveStreamData ? 3 : 4;
             const regularNews = news.slice(regularNewsStart, regularNewsStart + 6);
             
             // Render hero section
@@ -326,33 +326,33 @@ class NewsManager {
         if (this.heroNews.length === 0) return;
         
         this.renderCurrentHero();
-        this.renderHeroIndicators();
+        // Remove indicators since we're showing all cards at once
+        this.heroIndicators.innerHTML = '';
     }
     
     renderCurrentHero() {
-        const item = this.heroNews[this.currentHeroIndex];
-        if (!item) return;
+        if (this.heroNews.length === 0) return;
         
-        // Get second item if available for two-card layout
-        const secondItem = this.heroNews.length > 1 ? this.heroNews[(this.currentHeroIndex + 1) % this.heroNews.length] : null;
-        const showTwoCards = secondItem && this.heroNews.length > 1;
+        // Show all hero cards at once instead of rotating
+        let layoutClass = 'hero-content-single';
+        let cardHTML = '';
         
-        if (showTwoCards) {
-            // Two-card layout
-            this.heroNewsCard.innerHTML = `
-                <div class="hero-content-dual">
-                    ${this.createHeroCard(item, 'left')}
-                    ${this.createHeroCard(secondItem, 'right')}
-                </div>
-            `;
-        } else {
-            // Single card layout
-            this.heroNewsCard.innerHTML = `
-                <div class="hero-content-single">
-                    ${this.createHeroCard(item, 'single')}
-                </div>
-            `;
+        if (this.heroNews.length === 1) {
+            layoutClass = 'hero-content-single';
+            cardHTML = this.createHeroCard(this.heroNews[0], 'single');
+        } else if (this.heroNews.length === 2) {
+            layoutClass = 'hero-content-dual';
+            cardHTML = this.heroNews.map(item => this.createHeroCard(item, 'dual')).join('');
+        } else if (this.heroNews.length >= 3) {
+            layoutClass = 'hero-content-grid';
+            cardHTML = this.heroNews.slice(0, 4).map(item => this.createHeroCard(item, 'grid')).join('');
         }
+        
+        this.heroNewsCard.innerHTML = `
+            <div class="${layoutClass}">
+                ${cardHTML}
+            </div>
+        `;
     }
     
     createHeroCard(item, position) {
