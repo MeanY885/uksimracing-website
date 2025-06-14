@@ -298,10 +298,15 @@ body {
     letter-spacing: 1px;
 }
 
+/* Main content sections - consistent spacing from nav */
+main {
+    margin-top: 120px;
+}
+
 /* Featured News Section */
 .news-section-featured {
     padding: clamp(1rem, 3vw, 1.5rem) 0 1rem;
-    margin-top: 120px;
+    margin-top: 0;
     background-color: var(--primary-bg);
 }
 
@@ -1429,8 +1434,12 @@ body {
         max-width: 90%;
     }
     
-    .news-section-featured {
+    main {
         margin-top: clamp(40px, 8vw, 60px);
+    }
+    
+    .news-section-featured {
+        margin-top: 0;
         padding-top: clamp(1rem, 4vw, 1.5rem);
     }
     
@@ -1545,7 +1554,7 @@ body {
 /* Videos Section Styles */
 .videos-section {
     padding: 2rem 0 4rem;
-    margin-top: 120px;
+    margin-top: 0;
     background-color: var(--primary-bg);
 }
 
@@ -1860,7 +1869,7 @@ body {
 /* Responsive Design for Videos */
 @media (max-width: 768px) {
     .videos-section {
-        margin-top: clamp(40px, 8vw, 60px);
+        margin-top: 0;
     }
     
     .videos-grid {
