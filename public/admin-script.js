@@ -1,0 +1,1018 @@
+// Admin Manager Class for separate admin page
+class AdminManager {
+    constructor() {
+        this.authToken = localStorage.getItem('adminToken');
+        this.userRole = localStorage.getItem('adminRole');
+        this.username = localStorage.getItem('adminUsername');
+        this.editMode = false;
+        this.draggedElement = null;
+        this.currentTab = 'news';
+        this.init();
+    }
+    
+    init() {
+        this.bindLoginEvents();
+        this.bindTabEvents();
+        this.createEditModal();
+        
+        if (this.authToken) {
+            this.showAdminPanel();
+        }
+    }
+    
+    bindLoginEvents() {
+        const loginBtn = document.getElementById('loginBtn');
+        const passwordInput = document.getElementById('adminPassword');
+        const usernameInput = document.getElementById('adminUsername');
+        
+        loginBtn.addEventListener('click', () => this.login());
+        passwordInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') this.login();
+        });
+        usernameInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') this.login();
+        });
+    }
+    
+    bindTabEvents() {
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const tabName = e.target.getAttribute('data-tab');
+                this.switchTab(tabName);
+            });
+        });
+    }
+    
+    switchTab(tabName) {
+        // Update tab buttons
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.classList.remove('active');
+            if (btn.getAttribute('data-tab') === tabName) {
+                btn.classList.add('active');
+            }
+        });
+        
+        // Update tab content
+        document.querySelectorAll('.tab-content').forEach(content => {
+            content.classList.remove('active');
+        });
+        document.getElementById(tabName + 'Tab').classList.add('active');
+        
+        this.currentTab = tabName;
+        
+        // Load content for specific tabs
+        if (tabName === 'users' && this.userRole === 'master') {
+            this.loadUsers();
+        } else if (tabName === 'videos') {
+            this.loadVideos();
+        }
+    }
+    
+    async login() {
+        const password = document.getElementById('adminPassword').value;
+        const username = document.getElementById('adminUsername').value;
+        const errorDiv = document.getElementById('loginError');
+        
+        const payload = { password };
+        if (username.trim()) {
+            payload.username = username.trim();
+        }
+        
+        try {
+            const response = await fetch('/api/admin/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                this.authToken = data.token;
+                this.userRole = data.role;
+                this.username = data.username;
+                
+                localStorage.setItem('adminToken', this.authToken);
+                localStorage.setItem('adminRole', this.userRole);
+                localStorage.setItem('adminUsername', this.username);
+                
+                this.showAdminPanel();
+                errorDiv.textContent = '';
+            } else {
+                errorDiv.textContent = data.error || 'Invalid credentials';
+            }
+        } catch (error) {
+            errorDiv.textContent = 'Login failed';
+        }
+    }
+    
+    showAdminPanel() {
+        document.getElementById('adminLogin').style.display = 'none';
+        document.getElementById('adminPanel').style.display = 'block';
+        
+        // Update welcome message
+        document.getElementById('adminWelcome').textContent = this.username || 'Admin';
+        
+        // Show user management tab only for master admin
+        if (this.userRole === 'master') {
+            document.getElementById('usersTabBtn').style.display = 'block';
+        }
+        
+        this.bindAdminEvents();
+        this.bindLogoutEvents();
+        this.loadAdminNews();
+    }
+    
+    bindAdminEvents() {
+        // Always enable edit mode for news since user is already authenticated
+        this.editMode = true;
+        
+        // News management events
+        const createNewsBtn = document.getElementById('createNewsBtn');
+        if (createNewsBtn) {
+            createNewsBtn.addEventListener('click', () => this.createNews());
+        }
+        
+        // User management events
+        if (this.userRole === 'master') {
+            const createUserBtn = document.getElementById('createUserBtn');
+            const changePasswordBtn = document.getElementById('changePasswordBtn');
+            
+            createUserBtn.addEventListener('click', () => this.createUser());
+            changePasswordBtn.addEventListener('click', () => this.changePassword());
+        }
+    }
+    
+    bindLogoutEvents() {
+        const logoutBtn = document.getElementById('logoutBtn');
+        logoutBtn.addEventListener('click', () => this.logout());
+    }
+    
+    logout() {
+        // Clear stored authentication data
+        localStorage.removeItem('adminToken');
+        localStorage.removeItem('adminRole');
+        localStorage.removeItem('adminUsername');
+        
+        // Reset instance variables
+        this.authToken = null;
+        this.userRole = null;
+        this.username = null;
+        
+        // Hide admin panel and show login form
+        document.getElementById('adminPanel').style.display = 'none';
+        document.getElementById('adminLogin').style.display = 'block';
+        
+        // Clear login form
+        document.getElementById('adminUsername').value = '';
+        document.getElementById('adminPassword').value = '';
+        document.getElementById('loginError').textContent = '';
+        
+        // Reset to news tab
+        this.switchTab('news');
+    }
+    
+    
+    async loadAdminNews() {
+        try {
+            const response = await fetch('/api/news?limit=50');
+            const news = await response.json();
+            this.renderAdminNews(news);
+        } catch (error) {
+            console.error('Error loading admin news:', error);
+        }
+    }
+    
+    renderAdminNews(newsItems) {
+        const container = document.getElementById('adminNewsContainer');
+        container.innerHTML = '';
+        
+        newsItems.forEach(item => {
+            const card = this.createAdminNewsCard(item);
+            container.appendChild(card);
+        });
+    }
+    
+    createAdminNewsCard(item) {
+        const card = document.createElement('div');
+        card.className = 'admin-news-card';
+        card.dataset.id = item.id;
+        
+        const formattedDate = this.formatDate(item.timestamp);
+        const excerpt = this.createExcerpt(item.content, 100);
+        
+        card.innerHTML = `
+            <div class="drag-handle">⋮⋮</div>
+            <div class="admin-card-controls">
+                <button class="admin-btn edit" onclick="adminManager.editNews(${item.id})">Edit</button>
+                <button class="admin-btn delete" onclick="adminManager.deleteNews(${item.id})">Delete</button>
+            </div>
+            ${item.image_url ? `<img src="${item.image_url}" alt="${item.title}" class="news-image">` : ''}
+            <div class="news-content">
+                <h3 class="news-title">${item.title}</h3>
+                <p class="news-excerpt">${excerpt}</p>
+                <div class="news-meta">
+                    <span class="news-author">By ${item.author}</span>
+                    <span class="news-date">${formattedDate}</span>
+                </div>
+            </div>
+        `;
+        
+        // Always enable edit mode since user is authenticated
+        card.classList.add('edit-mode');
+        this.addDragListeners(card);
+        
+        return card;
+    }
+    
+    addDragListeners(card) {
+        card.draggable = true;
+        
+        card.addEventListener('dragstart', (e) => {
+            this.draggedElement = card;
+            card.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/html', card.outerHTML);
+        });
+        
+        card.addEventListener('dragend', () => {
+            card.classList.remove('dragging');
+            document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+            this.draggedElement = null;
+        });
+        
+        card.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            
+            if (this.draggedElement && this.draggedElement !== card) {
+                const rect = card.getBoundingClientRect();
+                const midY = rect.top + rect.height / 2;
+                const clientY = e.clientY;
+                
+                // Remove all drag-over classes first
+                document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+                
+                // Add appropriate drag-over class based on position
+                if (clientY < midY) {
+                    card.classList.add('drag-over-top');
+                } else {
+                    card.classList.add('drag-over-bottom');
+                }
+            }
+        });
+        
+        card.addEventListener('dragenter', (e) => {
+            e.preventDefault();
+        });
+        
+        card.addEventListener('dragleave', (e) => {
+            // Only remove if we're actually leaving the card completely
+            const rect = card.getBoundingClientRect();
+            const x = e.clientX;
+            const y = e.clientY;
+            
+            if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) {
+                card.classList.remove('drag-over-top', 'drag-over-bottom');
+            }
+        });
+        
+        card.addEventListener('drop', (e) => {
+            e.preventDefault();
+            card.classList.remove('drag-over-top', 'drag-over-bottom');
+            
+            if (this.draggedElement && this.draggedElement !== card) {
+                const rect = card.getBoundingClientRect();
+                const midY = rect.top + rect.height / 2;
+                const clientY = e.clientY;
+                const insertBefore = clientY < midY;
+                
+                this.reorderNews(this.draggedElement, card, insertBefore);
+            }
+        });
+    }
+    
+    removeDragListeners(card) {
+        card.draggable = false;
+        // Remove all event listeners by cloning the element
+        const newCard = card.cloneNode(true);
+        card.parentNode.replaceChild(newCard, card);
+    }
+    
+    async reorderNews(draggedCard, targetCard, insertBefore) {
+        const container = document.getElementById('adminNewsContainer');
+        
+        // Reorder in DOM based on drop position
+        if (insertBefore) {
+            targetCard.parentNode.insertBefore(draggedCard, targetCard);
+        } else {
+            targetCard.parentNode.insertBefore(draggedCard, targetCard.nextSibling);
+        }
+        
+        // Get new order
+        const newCards = Array.from(container.children);
+        const newsIds = newCards.map(card => parseInt(card.dataset.id));
+        
+        // Send to server
+        try {
+            await fetch('/api/news/reorder', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${this.authToken}`
+                },
+                body: JSON.stringify({ newsIds })
+            });
+        } catch (error) {
+            console.error('Error reordering news:', error);
+            // Revert on error
+            this.loadAdminNews();
+        }
+    }
+    
+    async deleteNews(id) {
+        if (!confirm('Are you sure you want to delete this news article?')) {
+            return;
+        }
+        
+        try {
+            const response = await fetch(`/api/news/${id}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${this.authToken}`
+                }
+            });
+            
+            if (response.ok) {
+                this.loadAdminNews();
+            } else {
+                alert('Failed to delete news article');
+            }
+        } catch (error) {
+            console.error('Error deleting news:', error);
+            alert('Failed to delete news article');
+        }
+    }
+    
+    editNews(id) {
+        // Find the news item
+        fetch(`/api/news?limit=50`)
+            .then(response => response.json())
+            .then(news => {
+                const item = news.find(n => n.id === id);
+                if (item) {
+                    this.showEditModal(item);
+                }
+            });
+    }
+    
+    createNews() {
+        // Show modal for creating new news
+        this.showEditModal({
+            id: null,
+            title: '',
+            content: '',
+            author: this.username || 'Admin',
+            image_url: ''
+        }, true);
+    }
+    
+    showEditModal(item, isCreate = false) {
+        const modal = document.getElementById('editModal');
+        
+        // Update modal title and button text based on mode
+        const modalTitle = modal.querySelector('h3');
+        const submitBtn = modal.querySelector('button[type="submit"]');
+        
+        if (isCreate) {
+            modalTitle.textContent = 'Create New News Article';
+            submitBtn.textContent = 'Create Article';
+        } else {
+            modalTitle.textContent = 'Edit News Article';
+            submitBtn.textContent = 'Save Changes';
+        }
+        
+        // Populate form
+        document.getElementById('editId').value = item.id || '';
+        document.getElementById('editTitle').value = item.title;
+        document.getElementById('editContent').value = item.content;
+        document.getElementById('editAuthor').value = item.author;
+        document.getElementById('editImageUrl').value = item.image_url || '';
+        
+        // Store create mode on modal for form submission
+        modal.dataset.isCreate = isCreate;
+        
+        modal.style.display = 'block';
+        document.body.style.overflow = 'hidden';
+    }
+    
+    createEditModal() {
+        const modal = document.createElement('div');
+        modal.id = 'editModal';
+        modal.className = 'edit-modal';
+        modal.innerHTML = `
+            <div class="edit-modal-content">
+                <span class="edit-modal-close">&times;</span>
+                <h3>Edit News Article</h3>
+                <form class="edit-form" id="editForm">
+                    <input type="hidden" id="editId">
+                    
+                    <label for="editTitle">Title:</label>
+                    <input type="text" id="editTitle" required>
+                    
+                    <label for="editContent">Content:</label>
+                    <textarea id="editContent" required></textarea>
+                    
+                    <label for="editAuthor">Author:</label>
+                    <input type="text" id="editAuthor" required>
+                    
+                    <label for="editImageUrl">Image URL:</label>
+                    <input type="url" id="editImageUrl">
+                    
+                    <div class="edit-form-buttons">
+                        <button type="button" class="btn" onclick="adminManager.closeEditModal()">Cancel</button>
+                        <button type="submit" class="btn btn-outline">Save Changes</button>
+                    </div>
+                </form>
+            </div>
+        `;
+        document.body.appendChild(modal);
+        
+        // Close modal events
+        modal.querySelector('.edit-modal-close').addEventListener('click', () => this.closeEditModal());
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) this.closeEditModal();
+        });
+        
+        // Form submit
+        document.getElementById('editForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.saveNewsEdit();
+        });
+    }
+    
+    closeEditModal() {
+        document.getElementById('editModal').style.display = 'none';
+        document.body.style.overflow = 'auto';
+    }
+    
+    async saveNewsEdit() {
+        const modal = document.getElementById('editModal');
+        const isCreate = modal.dataset.isCreate === 'true';
+        
+        const id = document.getElementById('editId').value;
+        const title = document.getElementById('editTitle').value;
+        const content = document.getElementById('editContent').value;
+        const author = document.getElementById('editAuthor').value;
+        const image_url = document.getElementById('editImageUrl').value;
+        
+        if (!title.trim() || !content.trim() || !author.trim()) {
+            alert('Please fill in all required fields (Title, Content, Author)');
+            return;
+        }
+        
+        try {
+            let response;
+            
+            if (isCreate) {
+                // Create new news article
+                response = await fetch('/api/news', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${this.authToken}`
+                    },
+                    body: JSON.stringify({ title, content, author, image_url })
+                });
+            } else {
+                // Update existing news article
+                response = await fetch(`/api/news/${id}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${this.authToken}`
+                    },
+                    body: JSON.stringify({ title, content, author, image_url })
+                });
+            }
+            
+            if (response.ok) {
+                this.closeEditModal();
+                this.loadAdminNews();
+                const action = isCreate ? 'created' : 'updated';
+                console.log(`News article ${action} successfully`);
+            } else {
+                const errorText = await response.text();
+                alert(`Failed to ${isCreate ? 'create' : 'save'} article: ${errorText}`);
+            }
+        } catch (error) {
+            console.error('Error saving news:', error);
+            alert(`Failed to ${isCreate ? 'create' : 'save'} article`);
+        }
+    }
+    
+    createExcerpt(content, maxLength) {
+        if (content.length <= maxLength) return content;
+        return content.substring(0, maxLength).trim() + '...';
+    }
+    
+    formatDate(timestamp) {
+        const date = new Date(timestamp);
+        return date.toLocaleDateString('en-GB', {
+            day: 'numeric',
+            month: 'short',
+            year: 'numeric'
+        });
+    }
+    
+    // User Management Methods
+    async loadUsers() {
+        try {
+            const response = await fetch('/api/admin/users', {
+                headers: {
+                    'Authorization': `Bearer ${this.authToken}`
+                }
+            });
+            
+            if (response.ok) {
+                const users = await response.json();
+                this.renderUsers(users);
+            } else {
+                console.error('Failed to load users');
+            }
+        } catch (error) {
+            console.error('Error loading users:', error);
+        }
+    }
+    
+    renderUsers(users) {
+        const container = document.getElementById('usersList');
+        
+        if (users.length === 0) {
+            container.innerHTML = '<div class="loading">No users found</div>';
+            return;
+        }
+        
+        container.innerHTML = users.map(user => `
+            <div class="user-item">
+                <div class="user-info">
+                    <div class="user-name">${user.username}</div>
+                    <div class="user-role">${user.role}</div>
+                </div>
+                <div class="user-created">Created: ${this.formatDate(user.created_at)}</div>
+                <div class="user-login">Last Login: ${user.last_login ? this.formatDate(user.last_login) : 'Never'}</div>
+                <div class="user-created">By: ${user.created_by}</div>
+                <div class="user-actions">
+                    <button class="user-delete-btn" 
+                            onclick="adminManager.deleteUser(${user.id}, '${user.username}')"
+                            ${user.role === 'master' ? 'disabled' : ''}>
+                        ${user.role === 'master' ? 'Protected' : 'Delete'}
+                    </button>
+                </div>
+            </div>
+        `).join('');
+    }
+    
+    async createUser() {
+        const username = document.getElementById('newUsername').value.trim();
+        const password = document.getElementById('newPassword').value;
+        const role = document.getElementById('newUserRole').value;
+        const errorDiv = document.getElementById('createUserError');
+        
+        if (!username || !password || !role) {
+            errorDiv.textContent = 'All fields are required';
+            return;
+        }
+        
+        if (password.length < 6) {
+            errorDiv.textContent = 'Password must be at least 6 characters';
+            return;
+        }
+        
+        try {
+            const response = await fetch('/api/admin/create-user', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${this.authToken}`
+                },
+                body: JSON.stringify({ username, password, role })
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                // Clear form
+                document.getElementById('newUsername').value = '';
+                document.getElementById('newPassword').value = '';
+                document.getElementById('newUserRole').value = 'admin';
+                errorDiv.textContent = '';
+                
+                // Reload users list
+                this.loadUsers();
+                
+                alert(`User "${username}" created successfully!`);
+            } else {
+                errorDiv.textContent = data.error || 'Failed to create user';
+            }
+        } catch (error) {
+            errorDiv.textContent = 'Error creating user';
+        }
+    }
+    
+    async deleteUser(userId, username) {
+        if (!confirm(`Are you sure you want to delete user "${username}"?`)) {
+            return;
+        }
+        
+        try {
+            const response = await fetch(`/api/admin/users/${userId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${this.authToken}`
+                }
+            });
+            
+            if (response.ok) {
+                this.loadUsers();
+                alert(`User "${username}" deleted successfully!`);
+            } else {
+                const data = await response.json();
+                alert(data.error || 'Failed to delete user');
+            }
+        } catch (error) {
+            alert('Error deleting user');
+        }
+    }
+    
+    async changePassword() {
+        const currentPassword = document.getElementById('currentPassword').value;
+        const newPassword = document.getElementById('newPasswordChange').value;
+        const confirmPassword = document.getElementById('confirmPassword').value;
+        const errorDiv = document.getElementById('changePasswordError');
+        const successDiv = document.getElementById('changePasswordSuccess');
+        
+        // Clear previous messages
+        errorDiv.textContent = '';
+        successDiv.textContent = '';
+        
+        if (!currentPassword || !newPassword || !confirmPassword) {
+            errorDiv.textContent = 'All fields are required';
+            return;
+        }
+        
+        if (newPassword !== confirmPassword) {
+            errorDiv.textContent = 'New passwords do not match';
+            return;
+        }
+        
+        if (newPassword.length < 6) {
+            errorDiv.textContent = 'New password must be at least 6 characters';
+            return;
+        }
+        
+        try {
+            const response = await fetch('/api/admin/change-password', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${this.authToken}`
+                },
+                body: JSON.stringify({ currentPassword, newPassword })
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                // Clear form
+                document.getElementById('currentPassword').value = '';
+                document.getElementById('newPasswordChange').value = '';
+                document.getElementById('confirmPassword').value = '';
+                
+                successDiv.textContent = 'Password changed successfully!';
+            } else {
+                errorDiv.textContent = data.error || 'Failed to change password';
+            }
+        } catch (error) {
+            errorDiv.textContent = 'Error changing password';
+        }
+    }
+    
+    // Video Management Methods
+    async loadVideos() {
+        const container = document.getElementById('adminVideosContainer');
+        container.innerHTML = '<div class="loading">Loading videos...</div>';
+        
+        try {
+            const response = await fetch('/api/videos?limit=100', {
+                headers: {
+                    'Authorization': `Bearer ${this.authToken}`
+                }
+            });
+            const videos = await response.json();
+            
+            this.renderAdminVideos(videos);
+            this.bindVideoAdminEvents();
+        } catch (error) {
+            console.error('Error loading videos:', error);
+            container.innerHTML = '<div class="loading">Error loading videos</div>';
+        }
+    }
+    
+    renderAdminVideos(videos) {
+        const container = document.getElementById('adminVideosContainer');
+        
+        if (videos.length === 0) {
+            container.innerHTML = '<div class="loading">No videos found</div>';
+            return;
+        }
+        
+        container.innerHTML = videos.map(video => this.createAdminVideoCard(video)).join('');
+    }
+    
+    createAdminVideoCard(video) {
+        const formattedDate = this.formatDate(video.created_at);
+        const videoTitle = video.title || 'Untitled';
+        const duration = this.formatDuration(video.duration);
+        const viewCount = video.view_count || 0;
+        
+        return `
+            <div class="video-card admin-video-card" data-video-id="${video.id}">
+                <div class="video-thumbnail">
+                    ${video.thumbnail_url ? 
+                        `<img src="${video.thumbnail_url}" alt="${videoTitle}" loading="lazy">` : 
+                        '<div style="display: flex; align-items: center; justify-content: center; height: 100%; background: var(--hover-bg); color: var(--text-secondary);">No Thumbnail</div>'
+                    }
+                    ${duration ? `<div class="video-duration">${duration}</div>` : ''}
+                    <div class="video-card-controls" style="display: none;">
+                        <button class="admin-btn edit" onclick="adminManager.editVideo(${video.id})">Edit</button>
+                        <button class="admin-btn delete" onclick="adminManager.deleteVideo(${video.id})">Delete</button>
+                    </div>
+                    <div class="video-drag-handle" style="display: none;">⋮⋮</div>
+                </div>
+                <div class="video-info">
+                    <div class="video-title">${videoTitle}</div>
+                    <div class="video-description">${video.description ? video.description.substring(0, 100) + (video.description.length > 100 ? '...' : '') : 'No description'}</div>
+                    <div class="video-meta">
+                        <span class="video-views">${viewCount} views</span>
+                        <span class="video-date">${formattedDate}</span>
+                    </div>
+                    ${video.youtube_id ? 
+                        `<div style="margin-top: 0.5rem; font-size: 0.8rem; color: var(--text-muted);">
+                            YouTube ID: ${video.youtube_id}
+                        </div>` : ''
+                    }
+                </div>
+            </div>
+        `;
+    }
+    
+    bindVideoAdminEvents() {
+        const syncBtn = document.getElementById('adminSyncYouTubeBtn');
+        const addBtn = document.getElementById('adminAddVideoBtn');
+        
+        if (syncBtn) {
+            syncBtn.replaceWith(syncBtn.cloneNode(true));
+            document.getElementById('adminSyncYouTubeBtn').addEventListener('click', () => this.syncYouTube());
+        }
+        
+        if (addBtn) {
+            addBtn.replaceWith(addBtn.cloneNode(true));
+            document.getElementById('adminAddVideoBtn').addEventListener('click', () => this.addVideo());
+        }
+        
+        // Always enable video edit mode since user is authenticated
+        this.enableVideoEditMode();
+    }
+    
+    
+    enableVideoEditMode() {
+        const videoCards = document.querySelectorAll('.admin-video-card');
+        videoCards.forEach(card => {
+            card.classList.add('edit-mode');
+            const controls = card.querySelector('.video-card-controls');
+            const dragHandle = card.querySelector('.video-drag-handle');
+            if (controls) controls.style.display = 'flex';
+            if (dragHandle) dragHandle.style.display = 'block';
+        });
+    }
+    
+    disableVideoEditMode() {
+        const videoCards = document.querySelectorAll('.admin-video-card');
+        videoCards.forEach(card => {
+            card.classList.remove('edit-mode');
+            const controls = card.querySelector('.video-card-controls');
+            const dragHandle = card.querySelector('.video-drag-handle');
+            if (controls) controls.style.display = 'none';
+            if (dragHandle) dragHandle.style.display = 'none';
+        });
+    }
+    
+    async syncYouTube() {
+        if (!confirm('This will sync videos from the UKSimRacing YouTube channel. Continue?')) {
+            return;
+        }
+        
+        const syncBtn = document.getElementById('adminSyncYouTubeBtn');
+        const originalText = syncBtn.textContent;
+        syncBtn.textContent = 'Syncing...';
+        syncBtn.disabled = true;
+        
+        try {
+            const response = await fetch('/api/sync-youtube', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${this.authToken}`
+                }
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                alert(`Success: ${data.message}`);
+                this.loadVideos(); // Reload videos
+            } else {
+                alert(`Error: ${data.error}`);
+            }
+        } catch (error) {
+            console.error('Error syncing YouTube:', error);
+            alert('Error syncing YouTube videos');
+        } finally {
+            syncBtn.textContent = originalText;
+            syncBtn.disabled = false;
+        }
+    }
+    
+    async editVideo(videoId) {
+        try {
+            // Fetch video details
+            const response = await fetch('/api/videos', {
+                headers: {
+                    'Authorization': `Bearer ${this.authToken}`
+                }
+            });
+            const videos = await response.json();
+            const video = videos.find(v => v.id === videoId);
+            
+            if (!video) {
+                alert('Video not found');
+                return;
+            }
+            
+            // Show edit modal
+            this.showVideoEditModal(video);
+        } catch (error) {
+            console.error('Error loading video for edit:', error);
+            alert('Error loading video details');
+        }
+    }
+    
+    showVideoEditModal(video) {
+        // Create modal if it doesn't exist
+        let modal = document.getElementById('videoEditModal');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'videoEditModal';
+            modal.className = 'edit-modal';
+            modal.innerHTML = `
+                <div class="edit-modal-content">
+                    <span class="edit-modal-close">&times;</span>
+                    <h3>Edit Video</h3>
+                    <form class="edit-form" id="videoEditForm">
+                        <label for="videoEditTitle">Title:</label>
+                        <input type="text" id="videoEditTitle" required>
+                        
+                        <label for="videoEditDescription">Description:</label>
+                        <textarea id="videoEditDescription" rows="5"></textarea>
+                        
+                        <label for="videoEditYouTubeId">YouTube ID:</label>
+                        <input type="text" id="videoEditYouTubeId" readonly>
+                        
+                        <label for="videoEditDuration">Duration (seconds):</label>
+                        <input type="number" id="videoEditDuration">
+                        
+                        <div class="edit-form-buttons">
+                            <button type="button" class="btn btn-outline" onclick="adminManager.closeVideoEditModal()">Cancel</button>
+                            <button type="submit" class="btn btn-outline">Save Changes</button>
+                        </div>
+                    </form>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            
+            // Add close handlers
+            modal.querySelector('.edit-modal-close').addEventListener('click', () => this.closeVideoEditModal());
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) this.closeVideoEditModal();
+            });
+        }
+        
+        // Populate form
+        document.getElementById('videoEditTitle').value = video.title || '';
+        document.getElementById('videoEditDescription').value = video.description || '';
+        document.getElementById('videoEditYouTubeId').value = video.youtube_id || '';
+        document.getElementById('videoEditDuration').value = video.duration || '';
+        
+        // Handle form submission
+        const form = document.getElementById('videoEditForm');
+        form.onsubmit = (e) => {
+            e.preventDefault();
+            this.saveVideoChanges(video.id);
+        };
+        
+        modal.style.display = 'block';
+    }
+    
+    closeVideoEditModal() {
+        const modal = document.getElementById('videoEditModal');
+        if (modal) {
+            modal.style.display = 'none';
+        }
+    }
+    
+    async saveVideoChanges(videoId) {
+        const title = document.getElementById('videoEditTitle').value;
+        const description = document.getElementById('videoEditDescription').value;
+        const duration = document.getElementById('videoEditDuration').value;
+        
+        try {
+            const response = await fetch(`/api/videos/${videoId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${this.authToken}`
+                },
+                body: JSON.stringify({
+                    title,
+                    description,
+                    duration: duration ? parseInt(duration) : null
+                })
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                this.closeVideoEditModal();
+                this.loadVideos(); // Reload videos
+                alert('Video updated successfully!');
+            } else {
+                alert(data.error || 'Failed to update video');
+            }
+        } catch (error) {
+            console.error('Error updating video:', error);
+            alert('Error updating video');
+        }
+    }
+    
+    async deleteVideo(videoId) {
+        if (!confirm('Are you sure you want to delete this video? This action cannot be undone.')) {
+            return;
+        }
+        
+        try {
+            const response = await fetch(`/api/videos/${videoId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${this.authToken}`
+                }
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                this.loadVideos(); // Reload videos
+                alert('Video deleted successfully!');
+            } else {
+                alert(data.error || 'Failed to delete video');
+            }
+        } catch (error) {
+            console.error('Error deleting video:', error);
+            alert('Error deleting video');
+        }
+    }
+    
+    addVideo() {
+        alert('Add Video functionality would open a form to manually add videos. For now, use the Sync YouTube button to import videos from your channel.');
+    }
+    
+    formatDuration(seconds) {
+        if (!seconds) return '';
+        
+        const hours = Math.floor(seconds / 3600);
+        const minutes = Math.floor((seconds % 3600) / 60);
+        const secs = seconds % 60;
+        
+        if (hours > 0) {
+            return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        } else {
+            return `${minutes}:${secs.toString().padStart(2, '0')}`;
+        }
+    }
+}
+
+// Initialize admin manager when DOM is loaded
+document.addEventListener('DOMContentLoaded', () => {
+    console.log('🔐 Admin Panel loading...');
+    window.adminManager = new AdminManager();
+    console.log('🔐 Admin Panel ready');
+});

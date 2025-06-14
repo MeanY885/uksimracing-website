@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel - UKSimRacing</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <header class="header">
+        <div class="container">
+            <div class="header-left">
+                <div class="logo">
+                    <span class="logo-text">UKSIM<span class="logo-accent">RACING</span></span>
+                    <span class="logo-subtitle">ADMIN PANEL</span>
+                </div>
+            </div>
+            <div class="header-spacer"></div>
+            <nav class="nav">
+                <a href="/" class="nav-link">Back to Site</a>
+            </nav>
+        </div>
+    </header>
+
+    <main>
+        <section class="admin-section" style="display: block;">
+            <div class="container">
+                <h2 class="section-title">Admin <span class="text-accent">Panel</span></h2>
+                
+                <!-- Login Form -->
+                <div id="adminLogin" class="admin-login">
+                    <div class="login-form">
+                        <h3>Admin Login</h3>
+                        <input type="text" id="adminUsername" placeholder="Username (optional for legacy)" class="admin-input">
+                        <input type="password" id="adminPassword" placeholder="Password" class="admin-input">
+                        <button id="loginBtn" class="btn btn-outline">Login</button>
+                        <div id="loginError" class="error-message"></div>
+                        <div class="login-help">
+                            <small>Chris Eddisford can leave username blank for legacy login</small>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Admin Panel -->
+                <div id="adminPanel" class="admin-panel" style="display: none;">
+                    <div class="admin-header">
+                        <div class="admin-header-top">
+                            <h3>Welcome, <span id="adminWelcome">Admin</span>!</h3>
+                            <button id="logoutBtn" class="logout-btn">Logout</button>
+                        </div>
+                        <div class="admin-tabs">
+                            <button class="tab-btn" data-tab="users" id="usersTabBtn" style="display: none;">User Management</button>
+                            <button class="tab-btn" data-tab="settings">Change Password</button>
+                            <button class="tab-btn active" data-tab="news">News Management</button>
+                            <button class="tab-btn" data-tab="videos">Video Management</button>
+                        </div>
+                    </div>
+
+                    <!-- News Management Tab -->
+                    <div id="newsTab" class="tab-content active">
+                        <div class="admin-controls">
+                            <button id="createNewsBtn" class="btn btn-outline">Create New Post</button>
+                        </div>
+                        
+                        <div class="admin-news-grid" id="adminNewsContainer">
+                            <div class="loading">Loading admin news...</div>
+                        </div>
+                    </div>
+
+                    <!-- User Management Tab (Master Admin Only) -->
+                    <div id="usersTab" class="tab-content">
+                        <div class="user-management">
+                            <div class="create-user-section">
+                                <h4>Create New Admin User</h4>
+                                <div class="create-user-form">
+                                    <input type="text" id="newUsername" placeholder="Username" class="admin-input">
+                                    <input type="password" id="newPassword" placeholder="Password (min 6 chars)" class="admin-input">
+                                    <select id="newUserRole" class="admin-input">
+                                        <option value="admin">Admin</option>
+                                        <option value="moderator">Moderator</option>
+                                    </select>
+                                    <button id="createUserBtn" class="btn btn-outline">Create User</button>
+                                </div>
+                                <div id="createUserError" class="error-message"></div>
+                            </div>
+
+                            <div class="users-list-section">
+                                <h4>Existing Users</h4>
+                                <div id="usersList" class="users-list">
+                                    <div class="loading">Loading users...</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Settings Tab -->
+                    <div id="settingsTab" class="tab-content">
+                        <div class="settings-section">
+                            <h4>Change Password</h4>
+                            <div class="change-password-form">
+                                <input type="password" id="currentPassword" placeholder="Current Password" class="admin-input">
+                                <input type="password" id="newPasswordChange" placeholder="New Password (min 6 chars)" class="admin-input">
+                                <input type="password" id="confirmPassword" placeholder="Confirm New Password" class="admin-input">
+                                <button id="changePasswordBtn" class="btn btn-outline">Change Password</button>
+                            </div>
+                            <div id="changePasswordError" class="error-message"></div>
+                            <div id="changePasswordSuccess" class="success-message"></div>
+                        </div>
+                    </div>
+
+                    <!-- Video Management Tab -->
+                    <div id="videosTab" class="tab-content">
+                        <div class="admin-controls">
+                            <button id="adminAddVideoBtn" class="btn btn-outline">Add Video</button>
+                            <button id="adminSyncYouTubeBtn" class="btn btn-outline" style="margin-left: 1rem;">Sync YouTube</button>
+                        </div>
+                        
+                        <div class="videos-grid" id="adminVideosContainer">
+                            <div class="loading">Loading admin videos...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-brand">
+                    <div class="logo">
+                        <span class="logo-text">UKSIM<span class="logo-accent">RACING</span></span>
+                        <span class="logo-subtitle">COMMUNITY</span>
+                    </div>
+                    <p>Admin Panel - Restricted Access</p>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2025 UKSimRacing Community. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="admin-script.js"></script>
+</body>
+</html>

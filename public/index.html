@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UKSimRacing Community</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <header class="header">
+        <div class="container">
+            <div class="header-left">
+                <div class="logo">
+                    <span class="logo-text">UKSIM<span class="logo-accent">RACING</span></span>
+                    <span class="logo-subtitle">COMMUNITY</span>
+                </div>
+                <div class="header-stats-left">
+                    <div class="stat-inline">
+                        <span class="stat-number" id="memberCount">2200+</span>
+                        <span class="stat-label">Members</span>
+                    </div>
+                    <div class="stat-inline">
+                        <span class="stat-number" id="yearsCount">5</span>
+                        <span class="stat-label">Years Running</span>
+                    </div>
+                </div>
+            </div>
+            <div class="header-spacer"></div>
+            <nav class="nav">
+                <div class="nav-center">
+                    <a href="#home" class="nav-link active">Home</a>
+                    <a href="#news" class="nav-link">News</a>
+                    <a href="/videos" class="nav-link">Videos On Demand</a>
+                </div>
+                <a href="https://discord.gg/uksr" class="discord-btn" target="_blank" rel="noopener noreferrer">
+                    <span class="discord-icon">🎮</span>
+                    Join UKSimRacing Discord
+                    <span class="discord-pulse"></span>
+                </a>
+            </nav>
+        </div>
+    </header>
+
+    <main>
+
+        <section id="news" class="news-section-featured">
+            <div class="container">
+                
+                
+                <!-- Hero News Card -->
+                <div id="heroNewsSection" class="hero-news-section">
+                    <div class="hero-news-card" id="heroNewsCard">
+                        <div class="loading">Loading featured news...</div>
+                    </div>
+                    <div class="hero-news-controls">
+                        <button class="hero-nav-btn" id="heroPrevBtn">‹</button>
+                        <div class="hero-indicators" id="heroIndicators"></div>
+                        <button class="hero-nav-btn" id="heroNextBtn">›</button>
+                    </div>
+                </div>
+                
+                <!-- Regular News Grid -->
+                <div class="regular-news-section">
+                    <h3 class="subsection-title">More <span class="text-accent">News</span></h3>
+                    <div id="newsContainer" class="news-grid">
+                        <div class="loading">Loading news...</div>
+                    </div>
+                    <button id="loadMore" class="btn btn-outline" style="display: none;">Load More</button>
+                </div>
+            </div>
+        </section>
+
+
+    </main>
+
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-brand">
+                    <div class="logo">
+                        <span class="logo-text">UKSIM<span class="logo-accent">RACING</span></span>
+                        <span class="logo-subtitle">COMMUNITY</span>
+                    </div>
+                    <p>The premier UK sim racing community</p>
+                </div>
+                <div class="footer-links">
+                    <h4>Quick Links</h4>
+                    <a href="#home">Home</a>
+                    <a href="#news">News</a>
+                </div>
+                <div class="footer-social">
+                    <h4>Join Our Community</h4>
+                    <p>Connect with us on Discord for the latest updates and to join our racing events.</p>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2025 UKSimRacing Community. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html>
