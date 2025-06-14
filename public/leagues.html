@@ -96,12 +96,6 @@
     <main>
         <section class="leagues-section">
             <div class="container">
-                <h1 class="section-title">Active <span class="text-accent">Leagues</span></h1>
-                
-                <div class="leagues-intro">
-                    <p>Join UKSimRacing's competitive leagues featuring professional iRacing championships. Each league provides comprehensive handbooks, live standings, and structured registration systems for competitive sim racing at its finest.</p>
-                </div>
-
                 <div class="leagues-container">
                     <div class="leagues-list" id="leaguesListContainer">
                         <div class="loading">Loading leagues...</div>
@@ -109,8 +103,8 @@
                     
                     <div class="league-details" id="leagueDetailsContainer">
                         <div class="league-details-placeholder">
-                            <h3>Select a League</h3>
-                            <p>Click on a league from the left to view detailed information, registration options, and current standings.</p>
+                            <h3>Loading League Details</h3>
+                            <p>Loading the most recent league information...</p>
                         </div>
                     </div>
                 </div>
@@ -188,6 +182,11 @@
                         this.selectLeague(league);
                     });
                 });
+                
+                // Auto-select the most recent league (first in the list)
+                if (leagues.length > 0) {
+                    this.selectLeague(leagues[0]);
+                }
             }
             
             createLeagueListItem(league) {
@@ -221,59 +220,60 @@
             showLeagueDetails(league) {
                 this.detailsContainer.innerHTML = `
                     <div class="league-details-content">
-                        <div class="league-details-left">
+                        <div class="league-details-header">
+                            <h2>${league.name}</h2>
                             <div class="league-details-nav">
                                 <button class="nav-tab active" data-tab="information">Information</button>
                                 <button class="nav-tab" data-tab="handbook">Handbook</button>
                                 <button class="nav-tab" data-tab="standings">Standings</button>
                                 <button class="nav-tab" data-tab="registration">Registration</button>
                             </div>
-                            
-                            <div class="league-details-tabs">
-                                <div class="tab-content active" id="information">
-                                    <h3>${league.name}</h3>
-                                    <div class="league-information">
-                                        ${this.formatInformation(league.information)}
-                                    </div>
-                                </div>
-                                
-                                <div class="tab-content" id="handbook">
-                                    <h3>League Handbook</h3>
-                                    ${league.handbook_url ? `
-                                        <p>Access the complete league handbook for rules, regulations, and guidelines.</p>
-                                        <a href="${league.handbook_url}" class="league-action-btn" target="_blank" rel="noopener noreferrer">
-                                            View Handbook
-                                            <span class="external-link">→</span>
-                                        </a>
-                                    ` : '<p>Handbook not available for this league.</p>'}
-                                </div>
-                                
-                                <div class="tab-content" id="standings">
-                                    <h3>Current Standings</h3>
-                                    ${league.standings_url ? `
-                                        <p>View the current championship standings and race results.</p>
-                                        <a href="${league.standings_url}" class="league-action-btn" target="_blank" rel="noopener noreferrer">
-                                            View Standings
-                                            <span class="external-link">→</span>
-                                        </a>
-                                    ` : '<p>Standings not available for this league.</p>'}
-                                </div>
-                                
-                                <div class="tab-content" id="registration">
-                                    <h3>Registration</h3>
-                                    ${this.getRegistrationContent(league)}
-                                </div>
-                            </div>
                         </div>
                         
-                        <div class="league-details-right">
-                            ${league.image_path ? `
-                                <img src="${league.image_path}" alt="${league.name}" class="league-details-image">
-                            ` : `
-                                <div class="league-details-placeholder-image">
-                                    <h4>${league.name}</h4>
+                        <div class="league-details-body">
+                            <div class="league-details-left">
+                                <div class="league-details-tabs">
+                                    <div class="tab-content active" id="information">
+                                        <div class="league-information">
+                                            ${this.formatInformation(league.information)}
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="tab-content" id="handbook">
+                                        ${league.handbook_url ? `
+                                            <p>Access the complete league handbook for rules, regulations, and guidelines.</p>
+                                            <a href="${league.handbook_url}" class="league-action-btn" target="_blank" rel="noopener noreferrer">
+                                                View Handbook
+                                                <span class="external-link">→</span>
+                                            </a>
+                                        ` : '<p>Handbook not available for this league.</p>'}
+                                    </div>
+                                    
+                                    <div class="tab-content" id="standings">
+                                        ${league.standings_url ? `
+                                            <p>View the current championship standings and race results.</p>
+                                            <a href="${league.standings_url}" class="league-action-btn" target="_blank" rel="noopener noreferrer">
+                                                View Standings
+                                                <span class="external-link">→</span>
+                                            </a>
+                                        ` : '<p>Standings not available for this league.</p>'}
+                                    </div>
+                                    
+                                    <div class="tab-content" id="registration">
+                                        ${this.getRegistrationContent(league)}
+                                    </div>
                                 </div>
-                            `}
+                            </div>
+                            
+                            <div class="league-details-right">
+                                ${league.image_path ? `
+                                    <img src="${league.image_path}" alt="${league.name}" class="league-details-image">
+                                ` : `
+                                    <div class="league-details-placeholder-image">
+                                        <h4>${league.name}</h4>
+                                    </div>
+                                `}
+                            </div>
                         </div>
                     </div>
                 `;
