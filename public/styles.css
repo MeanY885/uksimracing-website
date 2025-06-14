@@ -552,7 +552,7 @@ main {
 .news-image {
     width: 100%;
     height: clamp(200px, 40vw, 320px);
-    object-fit: cover;
+    object-fit: contain;
     object-position: center;
     background: var(--hover-bg);
     border-radius: 0;
