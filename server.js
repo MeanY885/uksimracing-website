@@ -740,7 +740,7 @@ app.get('/api/videos', (req, res) => {
   const offset = req.query.offset || 0;
   
   db.all(
-    'SELECT * FROM videos WHERE created_by = ? ORDER BY sort_order ASC, created_at DESC LIMIT ? OFFSET ?',
+    'SELECT * FROM videos WHERE created_by = ? ORDER BY sort_order DESC, created_at DESC LIMIT ? OFFSET ?',
     ['youtube-sync', limit, offset],
     (err, rows) => {
       if (err) {
