@@ -14,6 +14,22 @@ services:
       - ./data:/app/data
     networks:
       - uksimracing-network
+      
+  discord-bot:
+    build: ./discord-bot
+    container_name: uksimracing-discord-bot
+    restart: unless-stopped
+    environment:
+      - DISCORD_BOT_TOKEN=${DISCORD_BOT_TOKEN}
+      - WEBSITE_URL=http://app:2000
+      - WEBHOOK_SECRET=${WEBHOOK_SECRET}
+      - TRIGGER_MENTION=UKSimRacingWebsite
+    env_file:
+      - .env
+    networks:
+      - uksimracing-network
+    depends_on:
+      - app
     
   nginx:
     image: nginx:alpine
