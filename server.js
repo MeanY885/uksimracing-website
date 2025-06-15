@@ -1815,23 +1815,37 @@ app.post('/api/download-existing-images', async (req, res) => {
 // Discord OAuth2 Routes
 app.get('/auth/discord', passport.authenticate('discord'));
 
+// Discord admin login route (for main login)
+app.get('/auth/discord/admin', passport.authenticate('discord', { 
+  state: 'admin_login'
+}));
+
 app.get('/auth/discord/callback', 
   passport.authenticate('discord', { failureRedirect: '/admin-panel?error=discord_auth_failed' }),
   async (req, res) => {
-    // Check if user has admin panel access
+    // Check if user has admin panel access based on their Discord roles
     const hasAccess = await hasPermission(req.user.id, 'admin_panel');
     
     if (hasAccess) {
-      // Set session data for admin access
+      // Generate admin token for Discord user
+      const authToken = generateJWT({ 
+        userId: req.user.id, 
+        role: 'discord_admin',
+        username: req.user.username,
+        discordId: req.user.id
+      });
+      
+      // Set session data
       req.session.discordUser = {
         id: req.user.id,
         username: req.user.username,
         avatar: req.user.avatar,
         roles: req.user.roles
       };
-      res.redirect('/admin-panel?discord_auth=success');
+      
+      res.redirect(`/admin-panel?discord_login=success&token=${authToken}&role=discord_admin&username=${req.user.username}`);
     } else {
-      res.redirect('/admin-panel?error=insufficient_permissions');
+      res.redirect('/admin-panel?error=insufficient_discord_permissions');
     }
   }
 );

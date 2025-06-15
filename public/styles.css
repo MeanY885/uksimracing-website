@@ -60,17 +60,33 @@ body {
     right: 0;
     z-index: 1000;
     border-bottom: 1px solid var(--border-color);
-    height: 80px;
+    height: auto;
+    min-height: 100px;
 }
 
 .header .container {
     display: flex;
-    align-items: center;
+    flex-direction: column;
     padding: 0.75rem 20px;
-    gap: 1rem;
-    flex-wrap: nowrap;
-    min-height: 60px;
+    gap: 0.5rem;
+}
+
+/* Header Top Row */
+.header-top {
+    display: flex;
+    align-items: center;
     justify-content: space-between;
+    padding: 0.5rem 0;
+    min-height: 40px;
+}
+
+/* Header Bottom Row */
+.header-bottom {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.5rem 0;
+    min-height: 50px;
 }
 
 .logo {
@@ -98,24 +114,12 @@ body {
     margin-top: -2px;
 }
 
-.header-left {
+/* Header Stats Center */
+.header-stats-center {
     display: flex;
+    gap: clamp(1rem, 2.5vw, 2rem);
     align-items: center;
-    gap: 2rem;
-    flex-wrap: nowrap;
-    flex-shrink: 1;
-}
-
-.header-stats-left {
-    display: flex;
-    gap: clamp(0.75rem, 1.5vw, 1.5rem);
-    flex-wrap: nowrap;
-    white-space: nowrap;
-    flex-shrink: 1;
-}
-
-.header-spacer {
-    flex: 1;
+    justify-content: center;
 }
 
 .stat-inline {
@@ -179,22 +183,20 @@ body {
     color: var(--accent-color);
 }
 
+/* Navigation */
 .nav {
+    display: flex;
+    gap: clamp(1.5rem, 3vw, 2.5rem);
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+/* Discord Join Section */
+.discord-join {
     display: flex;
     align-items: center;
     justify-content: flex-end;
-    flex-shrink: 0;
-    position: relative;
-    contain: layout style;
-}
-
-.nav-center {
-    display: flex;
-    gap: clamp(1rem, 2vw, 2rem);
-    justify-content: center;
-    align-items: center;
-    text-align: center;
-    margin-right: clamp(1rem, 2vw, 2rem);
 }
 
 
@@ -308,7 +310,7 @@ body {
 .hero-header {
     background: linear-gradient(135deg, rgba(0, 180, 216, 0.1) 0%, rgba(0, 119, 182, 0.05) 100%);
     padding: 2rem 0;
-    margin-top: 80px;
+    margin-top: 120px;
     text-align: center;
     border-bottom: 1px solid var(--border-color);
 }
@@ -832,7 +834,7 @@ main {
 /* Admin Section Styles */
 .admin-section {
     padding: 2rem 0 4rem;
-    margin-top: 80px;
+    margin-top: 120px;
     background-color: var(--primary-bg);
 }
 
@@ -1483,52 +1485,62 @@ main {
     .header {
         position: relative;
         backdrop-filter: none;
+        min-height: auto;
     }
     
     .header .container {
+        gap: 0.75rem;
+        padding: 1rem 15px;
+    }
+    
+    .header-top {
         flex-direction: column;
-        gap: clamp(0.5rem, 2vw, 1rem);
+        gap: 1rem;
         text-align: center;
-        padding: clamp(0.75rem, 3vw, 1rem) clamp(15px, 4vw, 20px);
     }
     
-    .header-left {
+    .header-bottom {
         flex-direction: column;
-        gap: clamp(0.75rem, 2vw, 1rem);
-        width: 100%;
+        gap: 1rem;
+        text-align: center;
     }
     
-    .header-stats-left {
-        gap: clamp(1rem, 4vw, 1.5rem);
+    .social-icons {
+        gap: 1rem;
         justify-content: center;
-        width: 100%;
+        order: 3;
+    }
+    
+    .header-stats-center {
+        gap: 1.5rem;
+        justify-content: center;
+        order: 1;
+    }
+    
+    .discord-join {
+        justify-content: center;
+        order: 2;
     }
     
     .nav {
-        flex-direction: column;
-        gap: clamp(0.75rem, 2vw, 1rem);
-        align-items: center;
-        position: static;
-        width: 100%;
-    }
-    
-    .nav-center {
-        gap: clamp(0.75rem, 3vw, 1rem);
-        flex-wrap: wrap;
+        gap: 1.5rem;
         justify-content: center;
-        width: 100%;
+        flex-wrap: wrap;
     }
     
     .discord-btn {
         margin-top: 0.5rem;
         font-size: clamp(1rem, 3vw, 1.1rem);
         padding: clamp(0.75rem, 3vw, 0.875rem) clamp(1.5rem, 4vw, 1.75rem);
-        margin-left: 0;
         width: fit-content;
         max-width: 90%;
     }
     
-    main {
+    .hero-header {
+        margin-top: clamp(40px, 8vw, 60px);
+    }
+    
+    .admin-section {
         margin-top: clamp(40px, 8vw, 60px);
     }
     
@@ -3220,6 +3232,121 @@ main {
     line-height: 1.6;
 }
 
+/* Login Page Discord Styles */
+.login-divider {
+    display: flex;
+    align-items: center;
+    margin: 1.5rem 0;
+    text-align: center;
+}
+
+.login-divider::before,
+.login-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border-color);
+}
+
+.login-divider span {
+    padding: 0 1rem;
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+.discord-login-btn {
+    width: 100%;
+    background: #5865F2;
+    color: white;
+    border: none;
+    padding: 0.8rem 1.5rem;
+    border-radius: 8px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.discord-login-btn:hover {
+    background: #4752C4;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(88, 101, 242, 0.3);
+}
+
+.discord-login-help {
+    text-align: center;
+    margin-top: 0.5rem;
+}
+
+.discord-login-help small {
+    color: var(--text-muted);
+    font-size: 0.8rem;
+}
+
+/* User Management Discord Integration */
+.user-card {
+    position: relative;
+}
+
+.discord-link-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    margin-top: 0.25rem;
+}
+
+.discord-linked {
+    color: #22c55e;
+}
+
+.discord-unlinked {
+    color: var(--text-muted);
+}
+
+.user-discord-actions {
+    margin-top: 0.75rem;
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.btn-discord-link {
+    background: #5865F2;
+    color: white;
+    border: none;
+    padding: 0.4rem 0.8rem;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-discord-link:hover {
+    background: #4752C4;
+}
+
+.btn-discord-unlink {
+    background: transparent;
+    color: var(--text-secondary);
+    border: 1px solid var(--border-color);
+    padding: 0.4rem 0.8rem;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-discord-unlink:hover {
+    border-color: #dc2626;
+    color: #dc2626;
+}
+
 /* Discord Responsive Styles */
 @media (max-width: 768px) {
     .discord-user-info {
@@ -3244,5 +3371,9 @@ main {
     
     .permissions-legend {
         padding: 1rem;
+    }
+    
+    .user-discord-actions {
+        justify-content: center;
     }
 }

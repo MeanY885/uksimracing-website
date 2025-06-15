@@ -24,6 +24,7 @@ class AdminManager {
         const loginBtn = document.getElementById('loginBtn');
         const passwordInput = document.getElementById('adminPassword');
         const usernameInput = document.getElementById('adminUsername');
+        const discordLoginBtn = document.getElementById('discordLoginMainBtn');
         
         loginBtn.addEventListener('click', () => this.login());
         passwordInput.addEventListener('keypress', (e) => {
@@ -32,6 +33,56 @@ class AdminManager {
         usernameInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') this.login();
         });
+        
+        if (discordLoginBtn) {
+            discordLoginBtn.addEventListener('click', () => {
+                window.location.href = '/auth/discord';
+            });
+        }
+        
+        // Check for Discord login success in URL
+        this.checkDiscordLoginSuccess();
+    }
+    
+    checkDiscordLoginSuccess() {
+        const urlParams = new URLSearchParams(window.location.search);
+        
+        if (urlParams.get('discord_login') === 'success') {
+            const token = urlParams.get('token');
+            const role = urlParams.get('role');
+            const username = urlParams.get('username');
+            
+            if (token && role && username) {
+                // Store auth data
+                this.authToken = token;
+                this.userRole = role;
+                this.username = username;
+                
+                localStorage.setItem('adminToken', token);
+                localStorage.setItem('adminRole', role);
+                localStorage.setItem('adminUsername', username);
+                
+                // Show admin panel
+                this.showAdminPanel();
+                
+                // Clean URL
+                window.history.replaceState({}, document.title, window.location.pathname);
+            }
+        } else if (urlParams.get('error')) {
+            const error = urlParams.get('error');
+            let errorMessage = 'Discord authentication failed';
+            
+            if (error === 'insufficient_discord_permissions') {
+                errorMessage = 'Your Discord roles do not have admin panel access. Contact an administrator.';
+            } else if (error === 'discord_auth_failed') {
+                errorMessage = 'Discord authentication failed. Please try again.';
+            }
+            
+            document.getElementById('loginError').textContent = errorMessage;
+            
+            // Clean URL
+            window.history.replaceState({}, document.title, window.location.pathname);
+        }
     }
     
     bindTabEvents() {
@@ -119,9 +170,13 @@ class AdminManager {
         // Update welcome message
         document.getElementById('adminWelcome').textContent = this.username || 'Admin';
         
-        // Show user management tab only for master admin
+        // Show tabs based on user role
         if (this.userRole === 'master') {
             document.getElementById('usersTabBtn').style.display = 'block';
+            document.getElementById('discordTabBtn').style.display = 'block';
+        } else if (this.userRole === 'discord_admin') {
+            // Discord admins can see Discord tab but not user management
+            document.getElementById('discordTabBtn').style.display = 'block';
         }
         
         this.bindAdminEvents();
