@@ -1663,7 +1663,7 @@ main {
 /* Videos Section Styles */
 .videos-section {
     padding: 2rem 0 4rem;
-    margin-top: 0;
+    margin-top: 140px;
     background-color: var(--primary-bg);
 }
 
@@ -2112,7 +2112,7 @@ main {
 /* Partners Page Styles */
 .partners-section {
     padding: 2rem 0 4rem;
-    margin-top: 0;
+    margin-top: 140px;
     background-color: var(--primary-bg);
 }
 
@@ -2222,7 +2222,7 @@ main {
 /* Leagues Styles */
 .leagues-section {
     padding: 1rem 0 6rem;
-    margin-top: 100px;
+    margin-top: 140px;
     background-color: var(--primary-bg);
 }
 
@@ -3350,6 +3350,121 @@ main {
     color: #dc2626;
 }
 
+/* Discord OAuth2 and Bot Permissions Sections */
+.discord-auth-section,
+.bot-mentions-section {
+    background: var(--secondary-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+}
+
+.discord-auth-section h4,
+.bot-mentions-section h4 {
+    color: var(--accent-color);
+    margin-bottom: 0.5rem;
+    font-size: 1.2rem;
+    font-weight: 600;
+}
+
+.discord-auth-section p,
+.bot-mentions-section p {
+    color: var(--text-secondary);
+    margin-bottom: 1.5rem;
+    line-height: 1.6;
+}
+
+.discord-auth-roles,
+.bot-mention-permissions {
+    margin-top: 1.5rem;
+    padding: 1rem;
+    background: var(--primary-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    min-height: 150px;
+}
+
+.discord-role-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem;
+    margin-bottom: 0.5rem;
+    background: var(--secondary-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    transition: all 0.2s ease;
+}
+
+.discord-role-item:hover {
+    border-color: var(--accent-color);
+}
+
+.discord-role-info {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.discord-role-color {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    border: 1px solid var(--border-color);
+}
+
+.discord-role-name {
+    color: var(--text-primary);
+    font-weight: 500;
+    margin: 0;
+}
+
+.discord-role-controls {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.discord-permission-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.discord-permission-toggle label {
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    cursor: pointer;
+}
+
+.discord-permission-checkbox {
+    width: 16px;
+    height: 16px;
+    border: 2px solid var(--border-color);
+    border-radius: 4px;
+    background: transparent;
+    cursor: pointer;
+    position: relative;
+    transition: all 0.2s ease;
+}
+
+.discord-permission-checkbox:checked {
+    background: var(--accent-color);
+    border-color: var(--accent-color);
+}
+
+.discord-permission-checkbox:checked::after {
+    content: '✓';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: white;
+    font-size: 10px;
+    font-weight: bold;
+}
+
 /* Discord Responsive Styles */
 @media (max-width: 768px) {
     .discord-user-info {
@@ -3378,5 +3493,22 @@ main {
     
     .user-discord-actions {
         justify-content: center;
+    }
+    
+    .discord-auth-section,
+    .bot-mentions-section {
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    .discord-role-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+    
+    .discord-role-controls {
+        width: 100%;
+        justify-content: space-between;
     }
 }

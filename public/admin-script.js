@@ -194,13 +194,33 @@ class AdminManager {
             createNewsBtn.addEventListener('click', () => this.createNews());
         }
         
+        // Bot mention permissions events (for all admins)
+        const loadBotPermissionsBtn = document.getElementById('loadBotPermissionsBtn');
+        const saveBotPermissionsBtn = document.getElementById('saveBotPermissionsBtn');
+        
+        if (loadBotPermissionsBtn) {
+            loadBotPermissionsBtn.addEventListener('click', () => this.loadBotMentionPermissions());
+        }
+        if (saveBotPermissionsBtn) {
+            saveBotPermissionsBtn.addEventListener('click', () => this.saveBotMentionPermissions());
+        }
+        
         // User management events
         if (this.userRole === 'master') {
             const createUserBtn = document.getElementById('createUserBtn');
             const changePasswordBtn = document.getElementById('changePasswordBtn');
+            const loadDiscordRolesBtn = document.getElementById('loadDiscordRolesBtn');
+            const saveDiscordAuthBtn = document.getElementById('saveDiscordAuthBtn');
             
             createUserBtn.addEventListener('click', () => this.createUser());
             changePasswordBtn.addEventListener('click', () => this.changePassword());
+            
+            if (loadDiscordRolesBtn) {
+                loadDiscordRolesBtn.addEventListener('click', () => this.loadDiscordRolesForAuth());
+            }
+            if (saveDiscordAuthBtn) {
+                saveDiscordAuthBtn.addEventListener('click', () => this.saveDiscordAuthSettings());
+            }
         }
     }
     
@@ -1921,6 +1941,202 @@ class AdminManager {
     logoutDiscord() {
         if (confirm('Are you sure you want to logout from Discord?')) {
             window.location.href = '/auth/logout';
+        }
+    }
+
+    // New Discord OAuth2 Authentication Methods
+    async loadDiscordRolesForAuth() {
+        const container = document.getElementById('discordAuthRoles');
+        container.innerHTML = '<div class="loading">Loading Discord roles...</div>';
+        
+        try {
+            const response = await fetch('/api/discord/server-roles', {
+                headers: { 'Authorization': `Bearer ${this.authToken}` }
+            });
+            
+            if (!response.ok) {
+                throw new Error('Failed to load Discord roles');
+            }
+            
+            const roles = await response.json();
+            
+            // Get current auth settings
+            const authResponse = await fetch('/api/discord/auth-roles', {
+                headers: { 'Authorization': `Bearer ${this.authToken}` }
+            });
+            
+            const currentAuthRoles = authResponse.ok ? await authResponse.json() : [];
+            
+            this.renderDiscordAuthRoles(roles, currentAuthRoles);
+        } catch (error) {
+            console.error('Error loading Discord roles:', error);
+            container.innerHTML = '<div class="error">Failed to load Discord roles. Check console for details.</div>';
+        }
+    }
+
+    renderDiscordAuthRoles(roles, currentAuthRoles) {
+        const container = document.getElementById('discordAuthRoles');
+        
+        if (roles.length === 0) {
+            container.innerHTML = '<div class="no-roles">No Discord roles found</div>';
+            return;
+        }
+        
+        const rolesHTML = roles.map(role => {
+            const isAuthorized = currentAuthRoles.some(authRole => authRole.role_id === role.id);
+            const roleColor = role.color ? `#${role.color.toString(16).padStart(6, '0')}` : '#99aab5';
+            
+            return `
+                <div class="discord-role-item" data-role-id="${role.id}">
+                    <div class="discord-role-info">
+                        <div class="discord-role-color" style="background-color: ${roleColor}"></div>
+                        <h5 class="discord-role-name">${role.name}</h5>
+                    </div>
+                    <div class="discord-role-controls">
+                        <div class="discord-permission-toggle">
+                            <input type="checkbox" 
+                                   class="discord-permission-checkbox" 
+                                   ${isAuthorized ? 'checked' : ''} 
+                                   data-role-id="${role.id}">
+                            <label>Can authenticate via OAuth2</label>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+        
+        container.innerHTML = rolesHTML;
+    }
+
+    async saveDiscordAuthSettings() {
+        const container = document.getElementById('discordAuthRoles');
+        const checkboxes = container.querySelectorAll('.discord-permission-checkbox');
+        const authorizedRoles = [];
+        
+        checkboxes.forEach(checkbox => {
+            if (checkbox.checked) {
+                const roleId = checkbox.dataset.roleId;
+                const roleName = checkbox.closest('.discord-role-item').querySelector('.discord-role-name').textContent;
+                authorizedRoles.push({ role_id: roleId, role_name: roleName });
+            }
+        });
+        
+        try {
+            const response = await fetch('/api/discord/auth-roles', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${this.authToken}`
+                },
+                body: JSON.stringify({ authorizedRoles })
+            });
+            
+            if (response.ok) {
+                alert('Discord authentication settings saved successfully!');
+            } else {
+                alert('Failed to save Discord authentication settings');
+            }
+        } catch (error) {
+            console.error('Error saving Discord auth settings:', error);
+            alert('Error saving Discord authentication settings');
+        }
+    }
+
+    // New Bot Mention Permissions Methods
+    async loadBotMentionPermissions() {
+        const container = document.getElementById('botMentionPermissions');
+        container.innerHTML = '<div class="loading">Loading Discord permissions...</div>';
+        
+        try {
+            const response = await fetch('/api/discord/server-roles', {
+                headers: { 'Authorization': `Bearer ${this.authToken}` }
+            });
+            
+            if (!response.ok) {
+                throw new Error('Failed to load Discord roles');
+            }
+            
+            const roles = await response.json();
+            
+            // Get current bot mention permissions
+            const permissionsResponse = await fetch('/api/discord/bot-mention-permissions', {
+                headers: { 'Authorization': `Bearer ${this.authToken}` }
+            });
+            
+            const currentPermissions = permissionsResponse.ok ? await permissionsResponse.json() : [];
+            
+            this.renderBotMentionPermissions(roles, currentPermissions);
+        } catch (error) {
+            console.error('Error loading bot mention permissions:', error);
+            container.innerHTML = '<div class="error">Failed to load Discord permissions. Check console for details.</div>';
+        }
+    }
+
+    renderBotMentionPermissions(roles, currentPermissions) {
+        const container = document.getElementById('botMentionPermissions');
+        
+        if (roles.length === 0) {
+            container.innerHTML = '<div class="no-roles">No Discord roles found</div>';
+            return;
+        }
+        
+        const rolesHTML = roles.map(role => {
+            const hasPermission = currentPermissions.some(perm => perm.role_id === role.id);
+            const roleColor = role.color ? `#${role.color.toString(16).padStart(6, '0')}` : '#99aab5';
+            
+            return `
+                <div class="discord-role-item" data-role-id="${role.id}">
+                    <div class="discord-role-info">
+                        <div class="discord-role-color" style="background-color: ${roleColor}"></div>
+                        <h5 class="discord-role-name">${role.name}</h5>
+                    </div>
+                    <div class="discord-role-controls">
+                        <div class="discord-permission-toggle">
+                            <input type="checkbox" 
+                                   class="discord-permission-checkbox" 
+                                   ${hasPermission ? 'checked' : ''} 
+                                   data-role-id="${role.id}">
+                            <label>Can mention @UKSimRacingWebsite</label>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+        
+        container.innerHTML = rolesHTML;
+    }
+
+    async saveBotMentionPermissions() {
+        const container = document.getElementById('botMentionPermissions');
+        const checkboxes = container.querySelectorAll('.discord-permission-checkbox');
+        const allowedRoles = [];
+        
+        checkboxes.forEach(checkbox => {
+            if (checkbox.checked) {
+                const roleId = checkbox.dataset.roleId;
+                const roleName = checkbox.closest('.discord-role-item').querySelector('.discord-role-name').textContent;
+                allowedRoles.push({ role_id: roleId, role_name: roleName });
+            }
+        });
+        
+        try {
+            const response = await fetch('/api/discord/bot-mention-permissions', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${this.authToken}`
+                },
+                body: JSON.stringify({ allowedRoles })
+            });
+            
+            if (response.ok) {
+                alert('Bot mention permissions saved successfully!');
+            } else {
+                alert('Failed to save bot mention permissions');
+            }
+        } catch (error) {
+            console.error('Error saving bot mention permissions:', error);
+            alert('Error saving bot mention permissions');
         }
     }
 }

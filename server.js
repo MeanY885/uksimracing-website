@@ -195,6 +195,24 @@ function initDatabase() {
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   )`);
   
+  // Create Discord auth roles table (for OAuth2 authentication)
+  db.run(`CREATE TABLE IF NOT EXISTS discord_auth_roles (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    role_id TEXT UNIQUE NOT NULL,
+    role_name TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    created_by TEXT
+  )`);
+  
+  // Create Discord bot mentions table (for @UKSimRacingWebsite permissions)
+  db.run(`CREATE TABLE IF NOT EXISTS discord_bot_mentions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    role_id TEXT UNIQUE NOT NULL,
+    role_name TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    created_by TEXT
+  )`);
+  
   // Add sort_order column if it doesn't exist (for existing databases)
   db.run(`ALTER TABLE news ADD COLUMN sort_order INTEGER DEFAULT 0`, (err) => {
     // This will error if column already exists, which is fine
@@ -389,17 +407,26 @@ async function hasPermission(userId, permission) {
       
       const userRoles = JSON.parse(user.roles || '[]');
       
+      if (userRoles.length === 0) return resolve(false);
+      
+      // Check specific permission types
+      let tableName, permissionType;
+      if (permission === 'admin_panel') {
+        tableName = 'discord_auth_roles';
+        permissionType = 'admin panel access';
+      } else if (permission === 'bot_mentions') {
+        tableName = 'discord_bot_mentions';
+        permissionType = 'bot mention';
+      } else {
+        return resolve(false);
+      }
+      
       // Check if any of the user's roles have the required permission
-      db.all('SELECT permissions FROM discord_roles WHERE role_id IN (' + 
+      db.all(`SELECT role_id FROM ${tableName} WHERE role_id IN (` + 
              userRoles.map(() => '?').join(',') + ')', userRoles, (err, roles) => {
         if (err || !roles.length) return resolve(false);
         
-        const hasPermission = roles.some(role => {
-          const permissions = JSON.parse(role.permissions || '[]');
-          return permissions.includes(permission);
-        });
-        
-        resolve(hasPermission);
+        resolve(roles.length > 0);
       });
     });
   });
@@ -1871,8 +1898,8 @@ app.get('/api/discord/user', (req, res) => {
 app.get('/api/discord/server-roles', async (req, res) => {
   const authValidation = validateAdminToken(req.headers.authorization);
   
-  if (!authValidation.valid || authValidation.role !== 'master') {
-    return res.status(401).json({ error: 'Master admin access required' });
+  if (!authValidation.valid) {
+    return res.status(401).json({ error: 'Admin access required' });
   }
   
   try {
@@ -1950,6 +1977,110 @@ app.delete('/api/discord/role-permissions/:roleId', (req, res) => {
       return res.status(500).json({ error: err.message });
     }
     res.json({ success: true });
+  });
+});
+
+// New Discord Auth Roles endpoints
+app.get('/api/discord/auth-roles', (req, res) => {
+  const authValidation = validateAdminToken(req.headers.authorization);
+  
+  if (!authValidation.valid || authValidation.role !== 'master') {
+    return res.status(401).json({ error: 'Master admin access required' });
+  }
+  
+  db.all('SELECT * FROM discord_auth_roles ORDER BY role_name', (err, roles) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    res.json(roles);
+  });
+});
+
+app.post('/api/discord/auth-roles', (req, res) => {
+  const authValidation = validateAdminToken(req.headers.authorization);
+  
+  if (!authValidation.valid || authValidation.role !== 'master') {
+    return res.status(401).json({ error: 'Master admin access required' });
+  }
+  
+  const { authorizedRoles } = req.body;
+  
+  if (!Array.isArray(authorizedRoles)) {
+    return res.status(400).json({ error: 'authorizedRoles must be an array' });
+  }
+  
+  // Clear existing auth roles and insert new ones
+  db.run('DELETE FROM discord_auth_roles', (err) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    
+    if (authorizedRoles.length === 0) {
+      return res.json({ success: true });
+    }
+    
+    const stmt = db.prepare('INSERT INTO discord_auth_roles (role_id, role_name, created_by) VALUES (?, ?, ?)');
+    authorizedRoles.forEach(role => {
+      stmt.run(role.role_id, role.role_name, authValidation.userId || 'admin');
+    });
+    stmt.finalize((err) => {
+      if (err) {
+        return res.status(500).json({ error: err.message });
+      }
+      res.json({ success: true });
+    });
+  });
+});
+
+// New Bot Mention Permissions endpoints
+app.get('/api/discord/bot-mention-permissions', (req, res) => {
+  const authValidation = validateAdminToken(req.headers.authorization);
+  
+  if (!authValidation.valid) {
+    return res.status(401).json({ error: 'Admin access required' });
+  }
+  
+  db.all('SELECT * FROM discord_bot_mentions ORDER BY role_name', (err, permissions) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    res.json(permissions);
+  });
+});
+
+app.post('/api/discord/bot-mention-permissions', (req, res) => {
+  const authValidation = validateAdminToken(req.headers.authorization);
+  
+  if (!authValidation.valid) {
+    return res.status(401).json({ error: 'Admin access required' });
+  }
+  
+  const { allowedRoles } = req.body;
+  
+  if (!Array.isArray(allowedRoles)) {
+    return res.status(400).json({ error: 'allowedRoles must be an array' });
+  }
+  
+  // Clear existing bot mention permissions and insert new ones
+  db.run('DELETE FROM discord_bot_mentions', (err) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    
+    if (allowedRoles.length === 0) {
+      return res.json({ success: true });
+    }
+    
+    const stmt = db.prepare('INSERT INTO discord_bot_mentions (role_id, role_name, created_by) VALUES (?, ?, ?)');
+    allowedRoles.forEach(role => {
+      stmt.run(role.role_id, role.role_name, authValidation.userId || 'admin');
+    });
+    stmt.finalize((err) => {
+      if (err) {
+        return res.status(500).json({ error: err.message });
+      }
+      res.json({ success: true });
+    });
   });
 });
 

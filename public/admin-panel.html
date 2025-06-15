@@ -99,20 +99,6 @@
                     <!-- User Management Tab (Master Admin Only) -->
                     <div id="usersTab" class="tab-content">
                         <div class="user-management">
-                            <div class="create-user-section">
-                                <h4>Create New Admin User</h4>
-                                <div class="create-user-form">
-                                    <input type="text" id="newUsername" placeholder="Username" class="admin-input">
-                                    <input type="password" id="newPassword" placeholder="Password (min 6 chars)" class="admin-input">
-                                    <select id="newUserRole" class="admin-input">
-                                        <option value="admin">Admin</option>
-                                        <option value="moderator">Moderator</option>
-                                    </select>
-                                    <button id="createUserBtn" class="btn btn-outline">Create User</button>
-                                </div>
-                                <div id="createUserError" class="error-message"></div>
-                            </div>
-
                             <div class="discord-auth-section">
                                 <h4>Discord OAuth2 Authentication</h4>
                                 <p>Configure which Discord roles can authenticate to the admin panel via OAuth2</p>
@@ -125,6 +111,20 @@
                                 <div id="discordAuthRoles" class="discord-auth-roles">
                                     <div class="loading">Click "Load Discord Roles" to configure authentication</div>
                                 </div>
+                            </div>
+
+                            <div class="create-user-section">
+                                <h4>Create New Admin User</h4>
+                                <div class="create-user-form">
+                                    <input type="text" id="newUsername" placeholder="Username" class="admin-input">
+                                    <input type="password" id="newPassword" placeholder="Password (min 6 chars)" class="admin-input">
+                                    <select id="newUserRole" class="admin-input">
+                                        <option value="admin">Admin</option>
+                                        <option value="moderator">Moderator</option>
+                                    </select>
+                                    <button id="createUserBtn" class="btn btn-outline">Create User</button>
+                                </div>
+                                <div id="createUserError" class="error-message"></div>
                             </div>
 
                             <div class="users-list-section">
