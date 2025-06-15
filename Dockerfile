@@ -7,7 +7,7 @@ RUN npm install
 
 COPY . .
 
-RUN mkdir -p data
+RUN mkdir -p data public/uploads/partners public/uploads/leagues
 
 # Default to port 80 for WAF compatibility
 EXPOSE 80

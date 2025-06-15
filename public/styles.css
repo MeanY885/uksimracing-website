@@ -2166,18 +2166,25 @@ main {
 
 .leagues-container {
     display: grid;
-    grid-template-columns: 20% 40% 40%;
-    gap: 1.5rem;
+    grid-template-columns: 25% 35% 40%;
+    gap: 0.75rem;
     height: calc(100vh - 200px);
     min-height: 600px;
 }
 
-/* Column 1: League Selector (20%) */
+/* Column 1: League Selector (25%) */
 .leagues-selector-column {
     background: var(--secondary-bg);
     border-radius: 12px;
     border: 1px solid var(--border-color);
     padding: 1rem;
+    transition: all 0.3s ease;
+}
+
+.leagues-selector-column:hover {
+    transform: translateY(-2px);
+    border-color: var(--accent-color);
+    box-shadow: 0 8px 24px rgba(0, 180, 216, 0.15);
 }
 
 .leagues-list {
@@ -2244,7 +2251,7 @@ main {
     color: #9ca3af;
 }
 
-/* Column 2: League Information (40%) */
+/* Column 2: League Information (35%) */
 .leagues-info-column {
     background: var(--secondary-bg);
     border-radius: 12px;
@@ -2252,6 +2259,13 @@ main {
     overflow: hidden;
     display: flex;
     flex-direction: column;
+    transition: all 0.3s ease;
+}
+
+.leagues-info-column:hover {
+    transform: translateY(-2px);
+    border-color: var(--accent-color);
+    box-shadow: 0 8px 24px rgba(0, 180, 216, 0.15);
 }
 
 .league-info-content {
@@ -2294,6 +2308,13 @@ main {
     display: flex;
     align-items: center;
     justify-content: center;
+    transition: all 0.3s ease;
+}
+
+.leagues-image-column:hover {
+    transform: translateY(-2px);
+    border-color: var(--accent-color);
+    box-shadow: 0 8px 24px rgba(0, 180, 216, 0.15);
 }
 
 .league-image-content {
