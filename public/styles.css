@@ -1003,17 +1003,21 @@ main {
     height: 100vh;
     background-color: rgba(0, 0, 0, 0.95);
     backdrop-filter: blur(5px);
+    overflow-y: auto;
 }
 
 .edit-modal-content {
     background: var(--primary-bg);
-    margin: 5% auto;
+    margin: 2rem auto;
     padding: 2rem;
-    width: 80%;
-    max-width: 800px;
+    width: 90%;
+    max-width: 600px;
+    min-height: auto;
+    max-height: calc(100vh - 4rem);
     border-radius: 12px;
     border: 1px solid var(--border-color);
     position: relative;
+    overflow-y: auto;
 }
 
 .edit-modal-close {
@@ -2203,22 +2207,22 @@ main {
 /* Leagues Styles */
 .leagues-section {
     padding: 1rem 0 6rem;
-    margin-top: 80px;
+    margin-top: 100px;
     background-color: var(--primary-bg);
 }
 
 
 .leagues-container {
     display: grid;
-    grid-template-columns: 1.5fr 2.1fr 2.4fr;
+    grid-template-columns: 1.65fr 2.31fr 2.64fr;
     gap: 0.5rem;
-    height: calc(100vh - 180px);
-    min-height: 650px;
+    height: calc(100vh - 200px);
+    min-height: 715px;
     max-width: 100%;
     overflow: hidden;
 }
 
-/* Column 1: League Selector (1.5fr ≈ 25%) */
+/* Column 1: League Selector (1.65fr ≈ 27.5%) */
 .leagues-selector-column {
     background: var(--secondary-bg);
     border-radius: 12px;
@@ -2297,7 +2301,7 @@ main {
     color: #9ca3af;
 }
 
-/* Column 2: League Information (2.1fr ≈ 35%) */
+/* Column 2: League Information (2.31fr ≈ 38.5%) */
 .leagues-info-column {
     background: var(--secondary-bg);
     border-radius: 12px;
@@ -2345,7 +2349,7 @@ main {
     overflow-y: auto;
 }
 
-/* Column 3: League Image (2.4fr ≈ 40%) */
+/* Column 3: League Image (2.64fr ≈ 44%) */
 .leagues-image-column {
     background: var(--secondary-bg);
     border-radius: 12px;
