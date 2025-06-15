@@ -1505,21 +1505,24 @@ main {
         text-align: center;
     }
     
+    .logo {
+        order: 1;
+    }
+    
+    .header-stats-center {
+        gap: 1.5rem;
+        justify-content: center;
+        order: 2;
+    }
+    
     .social-icons {
         gap: 1rem;
         justify-content: center;
         order: 3;
     }
     
-    .header-stats-center {
-        gap: 1.5rem;
-        justify-content: center;
-        order: 1;
-    }
-    
     .discord-join {
         justify-content: center;
-        order: 2;
     }
     
     .nav {
