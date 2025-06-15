@@ -9,7 +9,7 @@ COPY . .
 
 RUN mkdir -p data public/uploads/partners public/uploads/leagues
 
-# Default to port 80 for WAF compatibility
-EXPOSE 80
+# Expose both HTTP and HTTPS ports
+EXPOSE 80 443
 
 CMD ["npm", "start"]

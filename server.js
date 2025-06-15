@@ -11,10 +11,13 @@ const axios = require('axios');
 const fs = require('fs-extra');
 const crypto = require('crypto');
 const multer = require('multer');
+const https = require('https');
+const http = require('http');
 
 const app = express();
-// WAF/FortiAPPSec compatibility - default to port 80 for HTTP/HTTPS serving
-const PORT = process.env.PORT || 80;
+const HTTP_PORT = process.env.HTTP_PORT || 80;
+const HTTPS_PORT = process.env.HTTPS_PORT || 443;
+const DOMAIN = process.env.DOMAIN || 'uksimracing.co.uk';
 
 // Middleware
 app.use(cors());
@@ -1600,16 +1603,58 @@ app.post('/api/download-existing-images', async (req, res) => {
   }
 });
 
+// Let's Encrypt challenge route
+app.use('/.well-known/acme-challenge', express.static('/var/www/certbot/.well-known/acme-challenge'));
+
 // Health check endpoint
 app.get('/health', (req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
 
-// Start server
-app.listen(PORT, () => {
-  console.log(`UKSimRacing website running on port ${PORT}`);
-  console.log('📡 WAF-compatible mode - serving HTTP/HTTPS for FortiAPPSec certificate management');
+// HTTPS redirect middleware
+app.use((req, res, next) => {
+  if (!req.secure && req.get('x-forwarded-proto') !== 'https' && process.env.NODE_ENV === 'production') {
+    return res.redirect(301, `https://${req.get('host')}${req.url}`);
+  }
+  next();
 });
+
+// SSL certificate management
+function getSSLCredentials() {
+  const certPath = `/etc/letsencrypt/live/${DOMAIN}`;
+  try {
+    if (fs.existsSync(`${certPath}/fullchain.pem`) && fs.existsSync(`${certPath}/privkey.pem`)) {
+      return {
+        key: fs.readFileSync(`${certPath}/privkey.pem`),
+        cert: fs.readFileSync(`${certPath}/fullchain.pem`)
+      };
+    }
+  } catch (error) {
+    console.log('SSL certificates not found, running HTTP only');
+  }
+  return null;
+}
+
+// Start servers
+const credentials = getSSLCredentials();
+
+// Always start HTTP server (for Let's Encrypt challenges and redirects)
+const httpServer = http.createServer(app);
+httpServer.listen(HTTP_PORT, () => {
+  console.log(`🌐 HTTP Server running on port ${HTTP_PORT}`);
+});
+
+// Start HTTPS server if certificates are available
+if (credentials) {
+  const httpsServer = https.createServer(credentials, app);
+  httpsServer.listen(HTTPS_PORT, () => {
+    console.log(`🔒 HTTPS Server running on port ${HTTPS_PORT}`);
+    console.log(`🎉 UKSimRacing website available at https://${DOMAIN}`);
+  });
+} else {
+  console.log('⚠️  Running in HTTP-only mode. SSL certificates not found.');
+  console.log(`🌐 UKSimRacing website available at http://${DOMAIN}`);
+}
 
 // Graceful shutdown
 process.on('SIGINT', () => {

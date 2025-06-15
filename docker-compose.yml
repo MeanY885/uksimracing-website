@@ -7,16 +7,29 @@ services:
     restart: unless-stopped
     ports:
       - "80:80"     # HTTP
-      - "443:80"    # HTTPS (FortiGate handles SSL termination)
-      - "2000:80"   # Development/backup port
+      - "443:443"   # HTTPS
     environment:
       - NODE_ENV=production
-      - PORT=80
+      - HTTP_PORT=80
+      - HTTPS_PORT=443
+      - DOMAIN=uksimracing.co.uk
     env_file:
       - .env
     volumes:
       - ./data:/app/data
       - ./uploads:/app/public/uploads
+      - ./letsencrypt:/etc/letsencrypt
+      - ./certbot:/var/www/certbot
+    networks:
+      - uksimracing
+      
+  certbot:
+    image: certbot/certbot
+    container_name: uksimracing-certbot
+    volumes:
+      - ./letsencrypt:/etc/letsencrypt
+      - ./certbot:/var/www/certbot
+    command: echo "Certbot ready for manual certificate requests"
     networks:
       - uksimracing
 
