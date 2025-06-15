@@ -1620,6 +1620,24 @@ app.use((req, res, next) => {
 });
 
 // SSL certificate management
+async function requestSSLCertificate() {
+  const { exec } = require('child_process');
+  const util = require('util');
+  const execAsync = util.promisify(exec);
+  
+  console.log('🔒 Requesting SSL certificate from Let\'s Encrypt...');
+  
+  try {
+    const command = `certbot certonly --webroot --webroot-path=/var/www/certbot --email chris@uksimracing.co.uk --agree-tos --no-eff-email --non-interactive -d ${DOMAIN} -d www.${DOMAIN}`;
+    await execAsync(command);
+    console.log('✅ SSL certificate obtained successfully!');
+    return true;
+  } catch (error) {
+    console.log('❌ Failed to obtain SSL certificate:', error.message);
+    return false;
+  }
+}
+
 function getSSLCredentials() {
   const certPath = `/etc/letsencrypt/live/${DOMAIN}`;
   try {
@@ -1630,31 +1648,51 @@ function getSSLCredentials() {
       };
     }
   } catch (error) {
-    console.log('SSL certificates not found, running HTTP only');
+    console.log('SSL certificates not found');
   }
   return null;
 }
 
 // Start servers
-const credentials = getSSLCredentials();
-
-// Always start HTTP server (for Let's Encrypt challenges and redirects)
-const httpServer = http.createServer(app);
-httpServer.listen(HTTP_PORT, () => {
-  console.log(`🌐 HTTP Server running on port ${HTTP_PORT}`);
-});
-
-// Start HTTPS server if certificates are available
-if (credentials) {
-  const httpsServer = https.createServer(credentials, app);
-  httpsServer.listen(HTTPS_PORT, () => {
-    console.log(`🔒 HTTPS Server running on port ${HTTPS_PORT}`);
-    console.log(`🎉 UKSimRacing website available at https://${DOMAIN}`);
+async function startServer() {
+  let credentials = getSSLCredentials();
+  
+  // Always start HTTP server (for Let's Encrypt challenges and redirects)
+  const httpServer = http.createServer(app);
+  httpServer.listen(HTTP_PORT, () => {
+    console.log(`🌐 HTTP Server running on port ${HTTP_PORT}`);
   });
-} else {
-  console.log('⚠️  Running in HTTP-only mode. SSL certificates not found.');
-  console.log(`🌐 UKSimRacing website available at http://${DOMAIN}`);
+
+  // If no SSL certificates, try to get them
+  if (!credentials && process.env.NODE_ENV === 'production') {
+    console.log('🔍 No SSL certificates found, attempting to obtain them...');
+    
+    // Wait a bit for HTTP server to be ready
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    
+    const success = await requestSSLCertificate();
+    if (success) {
+      credentials = getSSLCredentials();
+    }
+  }
+
+  // Start HTTPS server if certificates are available
+  if (credentials) {
+    const httpsServer = https.createServer(credentials, app);
+    httpsServer.listen(HTTPS_PORT, () => {
+      console.log(`🔒 HTTPS Server running on port ${HTTPS_PORT}`);
+      console.log(`🎉 UKSimRacing website available at https://${DOMAIN}`);
+    });
+  } else {
+    console.log('⚠️  Running in HTTP-only mode. SSL certificates not available.');
+    console.log(`🌐 UKSimRacing website available at http://${DOMAIN}`);
+    console.log('💡 To get SSL certificates, ensure domain points to this server and run:');
+    console.log(`   certbot certonly --webroot --webroot-path=/var/www/certbot -d ${DOMAIN} -d www.${DOMAIN}`);
+  }
 }
+
+// Start the server
+startServer().catch(console.error);
 
 // Graceful shutdown
 process.on('SIGINT', () => {

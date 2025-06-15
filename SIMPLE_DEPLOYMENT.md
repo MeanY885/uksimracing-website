@@ -1,6 +1,6 @@
-# UKSimRacing - Simple Single Docker Deployment with SSL
+# UKSimRacing - Automatic SSL Single Docker Deployment
 
-This deployment method uses a single Docker container with built-in HTTPS and Let's Encrypt SSL certificate management.
+This deployment method uses a single Docker container with **automatic** HTTPS and Let's Encrypt SSL certificate management.
 
 ## Quick Start
 
@@ -16,12 +16,19 @@ This deployment method uses a single Docker container with built-in HTTPS and Le
    # Edit .env with your settings (Discord tokens, etc.)
    ```
 
-3. **Run SSL Setup Script**
+3. **Deploy** (choose one method):
+
+   **Option A: Use your regular deployment:**
+   ```bash
+   git pull origin main && docker-compose down && docker-compose build --no-cache && docker-compose up -d
+   ```
+
+   **Option B: Use setup script (first time only):**
    ```bash
    ./setup-ssl-simple.sh
    ```
 
-That's it! Your site will be available at https://uksimracing.co.uk
+That's it! SSL certificates are **automatically** requested on startup.
 
 ## What the Setup Does
 
