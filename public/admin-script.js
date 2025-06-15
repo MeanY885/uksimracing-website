@@ -433,6 +433,10 @@ class AdminManager {
                     <label for="editImageUrl">Image URL:</label>
                     <input type="url" id="editImageUrl">
                     
+                    <label for="editImageFile">Or Upload Image:</label>
+                    <input type="file" id="editImageFile" accept="image/*" class="file-input">
+                    <div id="imagePreview" class="image-preview"></div>
+                    
                     <div class="edit-form-buttons">
                         <button type="button" class="btn" onclick="adminManager.closeEditModal()">Cancel</button>
                         <button type="submit" class="btn btn-outline">Save Changes</button>
@@ -453,11 +457,55 @@ class AdminManager {
             e.preventDefault();
             this.saveNewsEdit();
         });
+        
+        // File input change event
+        document.getElementById('editImageFile').addEventListener('change', (e) => {
+            this.handleImageFileSelect(e);
+        });
+        
+        // Clear file input when URL is entered
+        document.getElementById('editImageUrl').addEventListener('input', () => {
+            const fileInput = document.getElementById('editImageFile');
+            const imagePreview = document.getElementById('imagePreview');
+            fileInput.value = '';
+            imagePreview.innerHTML = '';
+        });
+    }
+    
+    handleImageFileSelect(event) {
+        const file = event.target.files[0];
+        const imagePreview = document.getElementById('imagePreview');
+        const imageUrlInput = document.getElementById('editImageUrl');
+        
+        if (file) {
+            // Clear URL input when file is selected
+            imageUrlInput.value = '';
+            
+            // Show preview
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                imagePreview.innerHTML = `
+                    <div class="preview-container">
+                        <img src="${e.target.result}" alt="Preview" class="preview-image">
+                        <span class="preview-filename">${file.name}</span>
+                    </div>
+                `;
+            };
+            reader.readAsDataURL(file);
+        } else {
+            imagePreview.innerHTML = '';
+        }
     }
     
     closeEditModal() {
         document.getElementById('editModal').style.display = 'none';
         document.body.style.overflow = 'auto';
+        
+        // Clear file input and preview
+        const fileInput = document.getElementById('editImageFile');
+        const imagePreview = document.getElementById('imagePreview');
+        if (fileInput) fileInput.value = '';
+        if (imagePreview) imagePreview.innerHTML = '';
     }
     
     async saveNewsEdit() {
@@ -469,6 +517,7 @@ class AdminManager {
         const content = document.getElementById('editContent').value;
         const author = document.getElementById('editAuthor').value;
         const image_url = document.getElementById('editImageUrl').value;
+        const imageFile = document.getElementById('editImageFile').files[0];
         
         if (!title.trim() || !content.trim() || !author.trim()) {
             alert('Please fill in all required fields (Title, Content, Author)');
@@ -476,6 +525,30 @@ class AdminManager {
         }
         
         try {
+            let finalImageUrl = image_url;
+            
+            // If file is selected, upload it first
+            if (imageFile) {
+                const formData = new FormData();
+                formData.append('image', imageFile);
+                
+                const uploadResponse = await fetch('/api/news/upload-image', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${this.authToken}`
+                    },
+                    body: formData
+                });
+                
+                if (uploadResponse.ok) {
+                    const uploadResult = await uploadResponse.json();
+                    finalImageUrl = uploadResult.imagePath;
+                } else {
+                    alert('Failed to upload image');
+                    return;
+                }
+            }
+            
             let response;
             
             if (isCreate) {
@@ -486,7 +559,7 @@ class AdminManager {
                         'Content-Type': 'application/json',
                         'Authorization': `Bearer ${this.authToken}`
                     },
-                    body: JSON.stringify({ title, content, author, image_url })
+                    body: JSON.stringify({ title, content, author, image_url: finalImageUrl })
                 });
             } else {
                 // Update existing news article
@@ -496,7 +569,7 @@ class AdminManager {
                         'Content-Type': 'application/json',
                         'Authorization': `Bearer ${this.authToken}`
                     },
-                    body: JSON.stringify({ title, content, author, image_url })
+                    body: JSON.stringify({ title, content, author, image_url: finalImageUrl })
                 });
             }
             

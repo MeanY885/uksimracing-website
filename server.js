@@ -31,6 +31,8 @@ const storage = multer.diskStorage({
     let folder = 'partners'; // default
     if (req.url.includes('/leagues')) {
       folder = 'leagues';
+    } else if (req.url.includes('/news')) {
+      folder = 'news';
     }
     
     const uploadDir = path.join(__dirname, 'public', 'uploads', folder);
@@ -42,6 +44,8 @@ const storage = multer.diskStorage({
     let prefix = 'partner';
     if (req.url.includes('/leagues')) {
       prefix = 'league';
+    } else if (req.url.includes('/news')) {
+      prefix = 'news';
     }
     cb(null, prefix + '-' + uniqueSuffix + path.extname(file.originalname));
   }
@@ -859,6 +863,28 @@ app.post('/api/news', (req, res) => {
         });
       }
     );
+  });
+});
+
+// News image upload endpoint
+app.post('/api/news/upload-image', upload.single('image'), (req, res) => {
+  const authValidation = validateAdminToken(req.headers.authorization);
+  
+  if (!authValidation.valid) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  
+  if (!req.file) {
+    return res.status(400).json({ error: 'No image file provided' });
+  }
+  
+  // Return the relative path that can be used in the frontend
+  const imagePath = `/uploads/news/${req.file.filename}`;
+  
+  res.json({ 
+    success: true, 
+    imagePath: imagePath,
+    filename: req.file.filename 
   });
 });
 

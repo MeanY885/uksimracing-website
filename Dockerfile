@@ -10,7 +10,7 @@ RUN npm install
 
 COPY . .
 
-RUN mkdir -p data public/uploads/partners public/uploads/leagues /var/www/certbot
+RUN mkdir -p data public/uploads/partners public/uploads/leagues public/uploads/news /var/www/certbot
 
 # Expose both HTTP and HTTPS ports
 EXPOSE 80 443
