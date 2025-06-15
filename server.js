@@ -13,11 +13,27 @@ const crypto = require('crypto');
 const multer = require('multer');
 const https = require('https');
 const http = require('http');
+const session = require('express-session');
+const passport = require('passport');
+const DiscordStrategy = require('passport-discord').Strategy;
+const { Client, GatewayIntentBits } = require('discord.js');
 
 const app = express();
 const HTTP_PORT = process.env.HTTP_PORT || 80;
 const HTTPS_PORT = process.env.HTTPS_PORT || 443;
 const DOMAIN = process.env.DOMAIN || 'uksimracing.co.uk';
+
+// Session configuration
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'uksimracing-session-secret-change-this',
+  resave: false,
+  saveUninitialized: false,
+  cookie: { secure: process.env.NODE_ENV === 'production' }
+}));
+
+// Passport configuration
+app.use(passport.initialize());
+app.use(passport.session());
 
 // Middleware
 app.use(cors());
@@ -155,6 +171,30 @@ function initDatabase() {
     created_by TEXT
   )`);
   
+  // Create Discord roles table
+  db.run(`CREATE TABLE IF NOT EXISTS discord_roles (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    role_id TEXT UNIQUE NOT NULL,
+    role_name TEXT NOT NULL,
+    permissions TEXT NOT NULL, -- JSON string: ["admin_panel", "bot_mentions"]
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    created_by TEXT
+  )`);
+  
+  // Create Discord users table
+  db.run(`CREATE TABLE IF NOT EXISTS discord_users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    discord_id TEXT UNIQUE NOT NULL,
+    username TEXT NOT NULL,
+    discriminator TEXT,
+    avatar TEXT,
+    access_token TEXT,
+    refresh_token TEXT,
+    roles TEXT, -- JSON string of role IDs
+    last_login DATETIME DEFAULT CURRENT_TIMESTAMP,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+  
   // Add sort_order column if it doesn't exist (for existing databases)
   db.run(`ALTER TABLE news ADD COLUMN sort_order INTEGER DEFAULT 0`, (err) => {
     // This will error if column already exists, which is fine
@@ -248,6 +288,149 @@ function initDatabase() {
   // Start automatic YouTube sync on app startup
   console.log('🎬 Setting up automatic YouTube sync...');
   setupAutoYouTubeSync();
+}
+
+// Discord OAuth2 Configuration
+passport.use(new DiscordStrategy({
+  clientID: process.env.DISCORD_CLIENT_ID,
+  clientSecret: process.env.DISCORD_CLIENT_SECRET,
+  callbackURL: process.env.NODE_ENV === 'production' 
+    ? `https://${DOMAIN}/auth/discord/callback`
+    : `http://localhost:${HTTP_PORT}/auth/discord/callback`,
+  scope: ['identify', 'guilds.members.read']
+}, async (accessToken, refreshToken, profile, done) => {
+  try {
+    // Get user's roles in the UKSimRacing server
+    const guildId = process.env.DISCORD_GUILD_ID;
+    let userRoles = [];
+    
+    if (guildId) {
+      try {
+        const response = await axios.get(`https://discord.com/api/guilds/${guildId}/members/${profile.id}`, {
+          headers: { Authorization: `Bearer ${accessToken}` }
+        });
+        userRoles = response.data.roles || [];
+      } catch (error) {
+        console.log('Could not fetch user roles:', error.message);
+      }
+    }
+    
+    // Save or update user in database
+    const userData = {
+      discord_id: profile.id,
+      username: profile.username,
+      discriminator: profile.discriminator,
+      avatar: profile.avatar,
+      access_token: accessToken,
+      refresh_token: refreshToken,
+      roles: JSON.stringify(userRoles)
+    };
+    
+    db.get('SELECT * FROM discord_users WHERE discord_id = ?', [profile.id], (err, existingUser) => {
+      if (existingUser) {
+        // Update existing user
+        db.run(`UPDATE discord_users SET username = ?, discriminator = ?, avatar = ?, 
+                access_token = ?, refresh_token = ?, roles = ?, last_login = CURRENT_TIMESTAMP 
+                WHERE discord_id = ?`, 
+                [userData.username, userData.discriminator, userData.avatar, 
+                 userData.access_token, userData.refresh_token, userData.roles, userData.discord_id]);
+      } else {
+        // Create new user
+        db.run(`INSERT INTO discord_users (discord_id, username, discriminator, avatar, 
+                access_token, refresh_token, roles) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+                [userData.discord_id, userData.username, userData.discriminator, 
+                 userData.avatar, userData.access_token, userData.refresh_token, userData.roles]);
+      }
+    });
+    
+    return done(null, { ...profile, roles: userRoles, accessToken });
+  } catch (error) {
+    return done(error, null);
+  }
+}));
+
+passport.serializeUser((user, done) => {
+  done(null, user.id);
+});
+
+passport.deserializeUser(async (id, done) => {
+  try {
+    db.get('SELECT * FROM discord_users WHERE discord_id = ?', [id], (err, user) => {
+      if (err) return done(err, null);
+      if (user) {
+        user.roles = JSON.parse(user.roles || '[]');
+      }
+      done(null, user);
+    });
+  } catch (error) {
+    done(error, null);
+  }
+});
+
+// Discord bot setup for mention checking
+const discordBot = new Client({ 
+  intents: [
+    GatewayIntentBits.Guilds, 
+    GatewayIntentBits.GuildMessages, 
+    GatewayIntentBits.MessageContent,
+    GatewayIntentBits.GuildMembers
+  ] 
+});
+
+discordBot.on('ready', () => {
+  console.log('🤖 Discord bot ready for role checking');
+});
+
+// Helper function to check if user has required permissions
+async function hasPermission(userId, permission) {
+  return new Promise((resolve) => {
+    db.get('SELECT roles FROM discord_users WHERE discord_id = ?', [userId], (err, user) => {
+      if (err || !user) return resolve(false);
+      
+      const userRoles = JSON.parse(user.roles || '[]');
+      
+      // Check if any of the user's roles have the required permission
+      db.all('SELECT permissions FROM discord_roles WHERE role_id IN (' + 
+             userRoles.map(() => '?').join(',') + ')', userRoles, (err, roles) => {
+        if (err || !roles.length) return resolve(false);
+        
+        const hasPermission = roles.some(role => {
+          const permissions = JSON.parse(role.permissions || '[]');
+          return permissions.includes(permission);
+        });
+        
+        resolve(hasPermission);
+      });
+    });
+  });
+}
+
+// Discord bot mention handler
+discordBot.on('messageCreate', async (message) => {
+  if (message.author.bot) return;
+  
+  // Check if the bot was mentioned
+  if (message.mentions.users.has(discordBot.user.id)) {
+    const hasPermission = await hasPermission(message.author.id, 'bot_mentions');
+    
+    if (!hasPermission) {
+      // React with X emoji if user doesn't have permission
+      try {
+        await message.react('❌');
+      } catch (error) {
+        console.log('Could not react to message:', error.message);
+      }
+      return;
+    }
+    
+    // User has permission, process the mention normally
+    // (existing bot functionality would go here)
+  }
+});
+
+// Start Discord bot
+if (process.env.DISCORD_BOT_TOKEN) {
+  discordBot.login(process.env.DISCORD_BOT_TOKEN);
 }
 
 // Image download function
@@ -1627,6 +1810,133 @@ app.post('/api/download-existing-images', async (req, res) => {
     console.error('Error downloading existing images:', error);
     res.status(500).json({ error: 'Failed to download images' });
   }
+});
+
+// Discord OAuth2 Routes
+app.get('/auth/discord', passport.authenticate('discord'));
+
+app.get('/auth/discord/callback', 
+  passport.authenticate('discord', { failureRedirect: '/admin-panel?error=discord_auth_failed' }),
+  async (req, res) => {
+    // Check if user has admin panel access
+    const hasAccess = await hasPermission(req.user.id, 'admin_panel');
+    
+    if (hasAccess) {
+      // Set session data for admin access
+      req.session.discordUser = {
+        id: req.user.id,
+        username: req.user.username,
+        avatar: req.user.avatar,
+        roles: req.user.roles
+      };
+      res.redirect('/admin-panel?discord_auth=success');
+    } else {
+      res.redirect('/admin-panel?error=insufficient_permissions');
+    }
+  }
+);
+
+app.get('/auth/logout', (req, res) => {
+  req.logout(() => {
+    req.session.destroy(() => {
+      res.redirect('/');
+    });
+  });
+});
+
+// Discord API endpoints for admin panel
+app.get('/api/discord/user', (req, res) => {
+  if (req.session.discordUser) {
+    res.json(req.session.discordUser);
+  } else {
+    res.status(401).json({ error: 'Not authenticated' });
+  }
+});
+
+// Get Discord roles from the server
+app.get('/api/discord/server-roles', async (req, res) => {
+  const authValidation = validateAdminToken(req.headers.authorization);
+  
+  if (!authValidation.valid || authValidation.role !== 'master') {
+    return res.status(401).json({ error: 'Master admin access required' });
+  }
+  
+  try {
+    const guildId = process.env.DISCORD_GUILD_ID;
+    if (!guildId) {
+      return res.status(500).json({ error: 'Discord Guild ID not configured' });
+    }
+    
+    const response = await axios.get(`https://discord.com/api/guilds/${guildId}/roles`, {
+      headers: { Authorization: `Bot ${process.env.DISCORD_BOT_TOKEN}` }
+    });
+    
+    const roles = response.data.filter(role => role.name !== '@everyone');
+    res.json(roles);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch Discord roles' });
+  }
+});
+
+// Manage Discord role permissions
+app.get('/api/discord/role-permissions', (req, res) => {
+  const authValidation = validateAdminToken(req.headers.authorization);
+  
+  if (!authValidation.valid || authValidation.role !== 'master') {
+    return res.status(401).json({ error: 'Master admin access required' });
+  }
+  
+  db.all('SELECT * FROM discord_roles ORDER BY role_name', (err, roles) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    
+    const rolesWithPermissions = roles.map(role => ({
+      ...role,
+      permissions: JSON.parse(role.permissions || '[]')
+    }));
+    
+    res.json(rolesWithPermissions);
+  });
+});
+
+app.post('/api/discord/role-permissions', (req, res) => {
+  const authValidation = validateAdminToken(req.headers.authorization);
+  
+  if (!authValidation.valid || authValidation.role !== 'master') {
+    return res.status(401).json({ error: 'Master admin access required' });
+  }
+  
+  const { role_id, role_name, permissions } = req.body;
+  
+  if (!role_id || !role_name || !Array.isArray(permissions)) {
+    return res.status(400).json({ error: 'Missing required fields' });
+  }
+  
+  db.run(`INSERT OR REPLACE INTO discord_roles (role_id, role_name, permissions, created_by) 
+          VALUES (?, ?, ?, ?)`,
+          [role_id, role_name, JSON.stringify(permissions), authValidation.userId || 'admin'],
+          (err) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    res.json({ success: true });
+  });
+});
+
+app.delete('/api/discord/role-permissions/:roleId', (req, res) => {
+  const authValidation = validateAdminToken(req.headers.authorization);
+  
+  if (!authValidation.valid || authValidation.role !== 'master') {
+    return res.status(401).json({ error: 'Master admin access required' });
+  }
+  
+  db.run('DELETE FROM discord_roles WHERE role_id = ?', [req.params.roleId], (err) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    res.json({ success: true });
+  });
 });
 
 // Let's Encrypt challenge route

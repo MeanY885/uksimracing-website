@@ -51,6 +51,7 @@
                         </div>
                         <div class="admin-tabs">
                             <button class="tab-btn" data-tab="users" id="usersTabBtn" style="display: none;">User Management</button>
+                            <button class="tab-btn" data-tab="discord" id="discordTabBtn" style="display: none;">Discord Roles</button>
                             <button class="tab-btn" data-tab="settings">Change Password</button>
                             <button class="tab-btn active" data-tab="news">News Management</button>
                             <button class="tab-btn" data-tab="videos">Video Management</button>
@@ -142,6 +143,48 @@
                         
                         <div class="leagues-grid" id="adminLeaguesContainer">
                             <div class="loading">Loading leagues...</div>
+                        </div>
+                    </div>
+
+                    <!-- Discord Roles Tab -->
+                    <div id="discordTab" class="tab-content">
+                        <div class="discord-auth-section" id="discordAuthSection">
+                            <div class="discord-login-card">
+                                <h4>Discord Authentication Required</h4>
+                                <p>To manage Discord role permissions, you need to authenticate with Discord.</p>
+                                <button id="discordLoginBtn" class="btn btn-outline">
+                                    <span class="discord-icon">🎮</span>
+                                    Login with Discord
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="discord-management-section" id="discordManagementSection" style="display: none;">
+                            <div class="discord-user-info" id="discordUserInfo">
+                                <!-- Discord user info will be populated here -->
+                            </div>
+
+                            <div class="admin-controls">
+                                <button id="refreshRolesBtn" class="btn btn-outline">Refresh Server Roles</button>
+                                <button id="logoutDiscordBtn" class="btn">Logout from Discord</button>
+                            </div>
+
+                            <div class="discord-roles-section">
+                                <h4>Server Roles & Permissions</h4>
+                                <p>Select which Discord roles have access to admin features:</p>
+                                
+                                <div class="roles-grid" id="discordRolesContainer">
+                                    <div class="loading">Loading Discord roles...</div>
+                                </div>
+                            </div>
+
+                            <div class="permissions-legend">
+                                <h5>Permission Types:</h5>
+                                <ul>
+                                    <li><strong>Admin Panel:</strong> Access to this admin panel</li>
+                                    <li><strong>Bot Mentions:</strong> Can mention @UKSimRacingWebsite</li>
+                                </ul>
+                            </div>
                         </div>
                     </div>
                 </div>

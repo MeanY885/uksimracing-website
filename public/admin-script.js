@@ -69,6 +69,8 @@ class AdminManager {
             this.loadPartners();
         } else if (tabName === 'leagues') {
             this.loadLeagues();
+        } else if (tabName === 'discord') {
+            this.loadDiscordManagement();
         }
     }
     
@@ -1666,6 +1668,204 @@ class AdminManager {
         } catch (error) {
             console.error('Error deleting league:', error);
             alert('Error deleting league');
+        }
+    }
+
+    // Discord Management Methods
+    async loadDiscordManagement() {
+        // Show Discord tab for master admins only
+        if (this.userRole !== 'master') {
+            document.getElementById('discordTab').innerHTML = `
+                <div class="access-denied">
+                    <h3>Access Denied</h3>
+                    <p>Discord role management is only available to master administrators.</p>
+                </div>
+            `;
+            return;
+        }
+
+        // Check if user is authenticated with Discord
+        try {
+            const response = await fetch('/api/discord/user');
+            if (response.ok) {
+                const discordUser = await response.json();
+                this.showDiscordManagement(discordUser);
+            } else {
+                this.showDiscordAuth();
+            }
+        } catch (error) {
+            this.showDiscordAuth();
+        }
+    }
+
+    showDiscordAuth() {
+        document.getElementById('discordAuthSection').style.display = 'block';
+        document.getElementById('discordManagementSection').style.display = 'none';
+        
+        // Add event listener for Discord login
+        const loginBtn = document.getElementById('discordLoginBtn');
+        if (loginBtn) {
+            loginBtn.onclick = () => {
+                window.location.href = '/auth/discord';
+            };
+        }
+    }
+
+    async showDiscordManagement(discordUser) {
+        document.getElementById('discordAuthSection').style.display = 'none';
+        document.getElementById('discordManagementSection').style.display = 'block';
+        
+        // Show Discord user info
+        document.getElementById('discordUserInfo').innerHTML = `
+            <div class="discord-user-card">
+                <img src="https://cdn.discordapp.com/avatars/${discordUser.id}/${discordUser.avatar}.png?size=64" 
+                     alt="${discordUser.username}" class="discord-avatar">
+                <div class="discord-user-details">
+                    <h4>${discordUser.username}</h4>
+                    <p>Authenticated with Discord</p>
+                </div>
+            </div>
+        `;
+        
+        // Add event listeners
+        document.getElementById('refreshRolesBtn').onclick = () => this.loadDiscordRoles();
+        document.getElementById('logoutDiscordBtn').onclick = () => this.logoutDiscord();
+        
+        // Load Discord roles
+        this.loadDiscordRoles();
+    }
+
+    async loadDiscordRoles() {
+        const container = document.getElementById('discordRolesContainer');
+        container.innerHTML = '<div class="loading">Loading Discord roles...</div>';
+        
+        try {
+            // Get server roles and current permissions
+            const [serverRolesResponse, permissionsResponse] = await Promise.all([
+                fetch('/api/discord/server-roles', {
+                    headers: { 'Authorization': `Bearer ${this.authToken}` }
+                }),
+                fetch('/api/discord/role-permissions', {
+                    headers: { 'Authorization': `Bearer ${this.authToken}` }
+                })
+            ]);
+            
+            if (!serverRolesResponse.ok || !permissionsResponse.ok) {
+                throw new Error('Failed to load Discord data');
+            }
+            
+            const serverRoles = await serverRolesResponse.json();
+            const currentPermissions = await permissionsResponse.json();
+            
+            this.renderDiscordRoles(serverRoles, currentPermissions);
+        } catch (error) {
+            console.error('Error loading Discord roles:', error);
+            container.innerHTML = '<div class="error">Failed to load Discord roles</div>';
+        }
+    }
+
+    renderDiscordRoles(serverRoles, currentPermissions) {
+        const container = document.getElementById('discordRolesContainer');
+        
+        if (serverRoles.length === 0) {
+            container.innerHTML = '<div class="no-roles">No Discord roles found</div>';
+            return;
+        }
+        
+        const rolesHTML = serverRoles.map(role => {
+            const rolePermissions = currentPermissions.find(p => p.role_id === role.id);
+            const hasAdminPanel = rolePermissions?.permissions.includes('admin_panel') || false;
+            const hasBotMentions = rolePermissions?.permissions.includes('bot_mentions') || false;
+            
+            return `
+                <div class="discord-role-card" data-role-id="${role.id}">
+                    <div class="role-header">
+                        <div class="role-name" style="color: #${role.color.toString(16).padStart(6, '0')}">
+                            ${role.name}
+                        </div>
+                        <div class="role-member-count">${role.position} members</div>
+                    </div>
+                    <div class="role-permissions">
+                        <label class="permission-checkbox">
+                            <input type="checkbox" ${hasAdminPanel ? 'checked' : ''} 
+                                   data-permission="admin_panel" data-role-id="${role.id}">
+                            Admin Panel Access
+                        </label>
+                        <label class="permission-checkbox">
+                            <input type="checkbox" ${hasBotMentions ? 'checked' : ''} 
+                                   data-permission="bot_mentions" data-role-id="${role.id}">
+                            Bot Mentions
+                        </label>
+                    </div>
+                    <div class="role-actions">
+                        <button class="btn-small save-role-btn" data-role-id="${role.id}" data-role-name="${role.name}">
+                            Save Changes
+                        </button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+        
+        container.innerHTML = rolesHTML;
+        
+        // Add event listeners for save buttons
+        container.querySelectorAll('.save-role-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const roleId = e.target.dataset.roleId;
+                const roleName = e.target.dataset.roleName;
+                this.saveRolePermissions(roleId, roleName);
+            });
+        });
+    }
+
+    async saveRolePermissions(roleId, roleName) {
+        const card = document.querySelector(`[data-role-id="${roleId}"]`);
+        const checkboxes = card.querySelectorAll('input[type="checkbox"]');
+        const permissions = [];
+        
+        checkboxes.forEach(checkbox => {
+            if (checkbox.checked) {
+                permissions.push(checkbox.dataset.permission);
+            }
+        });
+        
+        try {
+            const response = await fetch('/api/discord/role-permissions', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${this.authToken}`
+                },
+                body: JSON.stringify({
+                    role_id: roleId,
+                    role_name: roleName,
+                    permissions: permissions
+                })
+            });
+            
+            if (response.ok) {
+                // Show success feedback
+                const saveBtn = card.querySelector('.save-role-btn');
+                const originalText = saveBtn.textContent;
+                saveBtn.textContent = 'Saved!';
+                saveBtn.style.backgroundColor = '#22c55e';
+                
+                setTimeout(() => {
+                    saveBtn.textContent = originalText;
+                    saveBtn.style.backgroundColor = '';
+                }, 2000);
+            } else {
+                alert('Failed to save role permissions');
+            }
+        } catch (error) {
+            console.error('Error saving role permissions:', error);
+            alert('Error saving role permissions');
+        }
+    }
+
+    logoutDiscord() {
+        if (confirm('Are you sure you want to logout from Discord?')) {
+            window.location.href = '/auth/logout';
         }
     }
 }
