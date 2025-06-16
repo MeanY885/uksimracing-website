@@ -170,13 +170,21 @@ class AdminManager {
         // Update welcome message
         document.getElementById('adminWelcome').textContent = this.username || 'Admin';
         
+        console.log('showAdminPanel called with userRole:', this.userRole);
+        
         // Show tabs based on user role
         if (this.userRole === 'master') {
+            console.log('Showing master user tabs');
             document.getElementById('usersTabBtn').style.display = 'block';
-            document.getElementById('discordTabBtn').style.display = 'block';
+            if (document.getElementById('discordTabBtn')) {
+                document.getElementById('discordTabBtn').style.display = 'block';
+            }
         } else if (this.userRole === 'discord_admin') {
             // Discord admins can see Discord tab but not user management
-            document.getElementById('discordTabBtn').style.display = 'block';
+            console.log('Showing discord admin tabs');
+            if (document.getElementById('discordTabBtn')) {
+                document.getElementById('discordTabBtn').style.display = 'block';
+            }
         }
         
         this.bindAdminEvents();
@@ -198,8 +206,15 @@ class AdminManager {
         const loadBotPermissionsBtn = document.getElementById('loadBotPermissionsBtn');
         const saveBotPermissionsBtn = document.getElementById('saveBotPermissionsBtn');
         
+        console.log('loadBotPermissionsBtn found:', !!loadBotPermissionsBtn);
+        console.log('saveBotPermissionsBtn found:', !!saveBotPermissionsBtn);
+        
         if (loadBotPermissionsBtn) {
-            loadBotPermissionsBtn.addEventListener('click', () => this.loadBotMentionPermissions());
+            console.log('Adding click listener to loadBotPermissionsBtn');
+            loadBotPermissionsBtn.addEventListener('click', () => {
+                console.log('loadBotPermissionsBtn clicked!');
+                this.loadBotMentionPermissions();
+            });
         }
         if (saveBotPermissionsBtn) {
             saveBotPermissionsBtn.addEventListener('click', () => this.saveBotMentionPermissions());
@@ -212,21 +227,37 @@ class AdminManager {
             const loadDiscordRolesBtn = document.getElementById('loadDiscordRolesBtn');
             const saveDiscordAuthBtn = document.getElementById('saveDiscordAuthBtn');
             
+            console.log('User role is master, binding user management events');
+            console.log('loadDiscordRolesBtn found:', !!loadDiscordRolesBtn);
+            
             createUserBtn.addEventListener('click', () => this.createUser());
             changePasswordBtn.addEventListener('click', () => this.changePassword());
             
             if (loadDiscordRolesBtn) {
-                loadDiscordRolesBtn.addEventListener('click', () => this.loadDiscordRolesForAuth());
+                console.log('Adding click listener to loadDiscordRolesBtn');
+                loadDiscordRolesBtn.addEventListener('click', () => {
+                    console.log('loadDiscordRolesBtn clicked!');
+                    this.loadDiscordRolesForAuth();
+                });
             }
             if (saveDiscordAuthBtn) {
                 saveDiscordAuthBtn.addEventListener('click', () => this.saveDiscordAuthSettings());
             }
+        } else {
+            console.log('User role is not master:', this.userRole);
         }
     }
     
     bindLogoutEvents() {
         const logoutBtn = document.getElementById('logoutBtn');
-        logoutBtn.addEventListener('click', () => this.logout());
+        console.log('logoutBtn found:', !!logoutBtn);
+        if (logoutBtn) {
+            console.log('Adding click listener to logoutBtn');
+            logoutBtn.addEventListener('click', () => {
+                console.log('logoutBtn clicked!');
+                this.logout();
+            });
+        }
     }
     
     async logout() {
