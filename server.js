@@ -400,35 +400,57 @@ discordBot.on('ready', () => {
 });
 
 // Helper function to check if user has required permissions
-async function hasPermission(userId, permission) {
+async function hasPermission(userId, permission, userRoles = null) {
   return new Promise((resolve) => {
+    // If roles are provided directly, use them
+    if (userRoles) {
+      checkRolePermissions(userRoles, permission, resolve);
+      return;
+    }
+    
+    // Otherwise, get roles from database
     db.get('SELECT roles FROM discord_users WHERE discord_id = ?', [userId], (err, user) => {
-      if (err || !user) return resolve(false);
-      
-      const userRoles = JSON.parse(user.roles || '[]');
-      
-      if (userRoles.length === 0) return resolve(false);
-      
-      // Check specific permission types
-      let tableName, permissionType;
-      if (permission === 'admin_panel') {
-        tableName = 'discord_auth_roles';
-        permissionType = 'admin panel access';
-      } else if (permission === 'bot_mentions') {
-        tableName = 'discord_bot_mentions';
-        permissionType = 'bot mention';
-      } else {
+      if (err || !user) {
+        console.log(`User ${userId} not found in database for permission check`);
         return resolve(false);
       }
       
-      // Check if any of the user's roles have the required permission
-      db.all(`SELECT role_id FROM ${tableName} WHERE role_id IN (` + 
-             userRoles.map(() => '?').join(',') + ')', userRoles, (err, roles) => {
-        if (err || !roles.length) return resolve(false);
-        
-        resolve(roles.length > 0);
-      });
+      const storedUserRoles = JSON.parse(user.roles || '[]');
+      checkRolePermissions(storedUserRoles, permission, resolve);
     });
+  });
+}
+
+// Helper function to check role permissions against database
+function checkRolePermissions(userRoles, permission, resolve) {
+  if (!userRoles || userRoles.length === 0) {
+    console.log('User has no roles');
+    return resolve(false);
+  }
+  
+  // Check specific permission types
+  let tableName;
+  if (permission === 'admin_panel') {
+    tableName = 'discord_auth_roles';
+  } else if (permission === 'bot_mentions') {
+    tableName = 'discord_bot_mentions';
+  } else {
+    console.log(`Unknown permission type: ${permission}`);
+    return resolve(false);
+  }
+  
+  console.log(`Checking ${permission} permission for roles:`, userRoles);
+  
+  // Check if any of the user's roles have the required permission
+  db.all(`SELECT role_id FROM ${tableName} WHERE role_id IN (` + 
+         userRoles.map(() => '?').join(',') + ')', userRoles, (err, authorizedRoles) => {
+    if (err) {
+      console.error('Database error checking permissions:', err);
+      return resolve(false);
+    }
+    
+    console.log(`Found ${authorizedRoles.length} authorized roles for ${permission}:`, authorizedRoles);
+    resolve(authorizedRoles.length > 0);
   });
 }
 
@@ -1880,9 +1902,11 @@ app.get('/auth/discord/callback',
   async (req, res) => {
     try {
       console.log('Discord callback received for user:', req.user.username);
+      console.log('User Discord roles:', req.user.roles);
       
       // Check if user has admin panel access based on their Discord roles
-      const hasAccess = await hasPermission(req.user.id, 'admin_panel');
+      // Pass roles directly to avoid database timing issues
+      const hasAccess = await hasPermission(req.user.id, 'admin_panel', req.user.roles);
       console.log('User has admin panel access:', hasAccess);
       
       if (hasAccess) {
@@ -1905,7 +1929,7 @@ app.get('/auth/discord/callback',
         console.log('Redirecting to admin panel with success');
         res.redirect(`/admin-panel?discord_login=success&token=${authToken}&role=discord_admin&username=${encodeURIComponent(req.user.username)}`);
       } else {
-        console.log('User lacks sufficient permissions');
+        console.log('User lacks sufficient permissions - no authorized roles found');
         res.redirect('/admin-panel?error=insufficient_discord_permissions');
       }
     } catch (error) {
@@ -1929,6 +1953,33 @@ app.get('/api/discord/user', (req, res) => {
     res.json(req.session.discordUser);
   } else {
     res.status(401).json({ error: 'Not authenticated' });
+  }
+});
+
+// Debug endpoint to check Discord auth roles configuration
+app.get('/api/discord/debug-auth', async (req, res) => {
+  const authValidation = validateAdminToken(req.headers.authorization);
+  
+  if (!authValidation.valid || authValidation.role !== 'master') {
+    return res.status(401).json({ error: 'Master admin access required' });
+  }
+  
+  try {
+    // Get all configured auth roles
+    const authRoles = await new Promise((resolve, reject) => {
+      db.all('SELECT * FROM discord_auth_roles ORDER BY role_name', (err, roles) => {
+        if (err) reject(err);
+        else resolve(roles);
+      });
+    });
+    
+    res.json({
+      configuredAuthRoles: authRoles,
+      count: authRoles.length,
+      message: authRoles.length === 0 ? 'No Discord auth roles configured' : `${authRoles.length} auth roles configured`
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 });
 
