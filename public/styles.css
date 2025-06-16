@@ -364,7 +364,7 @@ main {
 /* Featured News Section */
 .news-section-featured {
     padding: clamp(1rem, 3vw, 1.5rem) 0 1rem;
-    margin-top: 0;
+    margin-top: 115px;
     background-color: var(--primary-bg);
 }
 
@@ -835,7 +835,7 @@ main {
 /* Admin Section Styles */
 .admin-section {
     padding: 2rem 0 4rem;
-    margin-top: 120px;
+    margin-top: 0px;
     background-color: var(--primary-bg);
 }
 
@@ -2113,7 +2113,7 @@ main {
 /* Partners Page Styles */
 .partners-section {
     padding: 2rem 0 4rem;
-    margin-top: 100px;
+    margin-top: 0px;
     background-color: var(--primary-bg);
 }
 
@@ -2223,7 +2223,7 @@ main {
 /* Leagues Styles */
 .leagues-section {
     padding: 2rem 0 6rem;
-    margin-top: 100px;
+    margin-top: 0px;
     background-color: var(--primary-bg);
 }
 
