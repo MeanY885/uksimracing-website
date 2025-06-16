@@ -32,13 +32,10 @@
                 <div id="adminLogin" class="admin-login">
                     <div class="login-form">
                         <h3>Admin Login</h3>
-                        <input type="text" id="adminUsername" placeholder="Username (optional for legacy)" class="admin-input">
+                        <input type="text" id="adminUsername" placeholder="Username" class="admin-input">
                         <input type="password" id="adminPassword" placeholder="Password" class="admin-input">
                         <button id="loginBtn" class="btn btn-outline">Login</button>
                         <div id="loginError" class="error-message"></div>
-                        <div class="login-help">
-                            <small>Chris Eddisford can leave username blank for legacy login</small>
-                        </div>
                         
                         <div class="login-divider">
                             <span>OR</span>
@@ -63,7 +60,7 @@
                         </div>
                         <div class="admin-tabs">
                             <button class="tab-btn" data-tab="users" id="usersTabBtn" style="display: none;">User Management</button>
-                            <button class="tab-btn" data-tab="settings">Change Password</button>
+                            <button class="tab-btn" data-tab="settings" id="settingsTabBtn" style="display: none;">Change Password</button>
                             <button class="tab-btn active" data-tab="news">News Management</button>
                             <button class="tab-btn" data-tab="videos">Video Management</button>
                             <button class="tab-btn" data-tab="partners">Partners Management</button>

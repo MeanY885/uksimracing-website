@@ -176,12 +176,13 @@ class AdminManager {
         if (this.userRole === 'master') {
             console.log('Showing master user tabs');
             document.getElementById('usersTabBtn').style.display = 'block';
+            document.getElementById('settingsTabBtn').style.display = 'block';
             if (document.getElementById('discordTabBtn')) {
                 document.getElementById('discordTabBtn').style.display = 'block';
             }
         } else if (this.userRole === 'discord_admin') {
-            // Discord admins can see Discord tab but not user management
-            console.log('Showing discord admin tabs');
+            // Discord admins cannot change passwords or manage users
+            console.log('Showing discord admin tabs (limited access)');
             if (document.getElementById('discordTabBtn')) {
                 document.getElementById('discordTabBtn').style.display = 'block';
             }
