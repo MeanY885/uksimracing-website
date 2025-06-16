@@ -358,6 +358,7 @@ body {
 /* Main content sections - consistent spacing from nav */
 main {
     margin-top: 140px;
+    padding-top: 60px !important;
 }
 
 /* Featured News Section */
