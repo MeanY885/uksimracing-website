@@ -16,6 +16,51 @@ const WEBSITE_URL = process.env.WEBSITE_URL || 'http://localhost:2000';
 const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET || 'your-webhook-secret-here';
 const TRIGGER_MENTION = process.env.TRIGGER_MENTION || 'UKSimRacingWebsite';
 
+// Function to check if user has permission to post to website
+async function checkUserPostPermission(userId, member) {
+    try {
+        // Get user's roles in the server
+        const userRoles = member ? member.roles.cache.map(role => role.id) : [];
+        
+        if (userRoles.length === 0) {
+            console.log(`User ${userId} has no roles`);
+            return false;
+        }
+        
+        console.log(`Checking permissions for user ${userId} with roles:`, userRoles);
+        
+        // Query website API to check if any of the user's roles are approved for bot mentions
+        const response = await axios.get(`${WEBSITE_URL}/api/discord/bot-mention-permissions`, {
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Webhook-Secret': WEBHOOK_SECRET
+            },
+            timeout: 5000
+        });
+        
+        if (response.status !== 200) {
+            console.log('Failed to get bot mention permissions from website');
+            return false;
+        }
+        
+        const approvedRoles = response.data || [];
+        console.log(`Found ${approvedRoles.length} approved roles from website:`, approvedRoles.map(r => r.role_name));
+        
+        // Check if user has any approved roles
+        const hasApprovedRole = userRoles.some(userRole => 
+            approvedRoles.some(approvedRole => approvedRole.role_id === userRole)
+        );
+        
+        console.log(`User has approved role: ${hasApprovedRole}`);
+        return hasApprovedRole;
+        
+    } catch (error) {
+        console.error('Error checking user post permission:', error.message);
+        // On error, deny permission for security
+        return false;
+    }
+}
+
 // Bot ready event
 client.once('ready', () => {
     console.log(`✅ Discord bot logged in as ${client.user.tag}!`);
@@ -88,6 +133,21 @@ client.on('messageCreate', async (message) => {
         if (!isTriggered) return;
 
         console.log(`📢 Triggered message found from ${message.author.username} in #${message.channel.name}`);
+        
+        // Check if user has permission to post to website
+        const hasPostPermission = await checkUserPostPermission(message.author.id, message.member);
+        if (!hasPostPermission) {
+            console.log(`🚫 User ${message.author.username} does not have permission to post to website`);
+            // React with X to indicate no permission
+            try {
+                await message.react('❌');
+            } catch (error) {
+                console.log('Could not react to message:', error.message);
+            }
+            return;
+        }
+        
+        console.log(`✅ User ${message.author.username} has permission to post to website`);
         
         // Clean the message content (remove Discord mentions and tags)
         let cleanContent = message.content

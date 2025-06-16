@@ -2148,18 +2148,33 @@ app.post('/api/discord/auth-roles', (req, res) => {
 
 // New Bot Mention Permissions endpoints
 app.get('/api/discord/bot-mention-permissions', (req, res) => {
-  const authValidation = validateAdminToken(req.headers.authorization);
+  // Check webhook secret for Discord bot access first
+  const webhookSecret = process.env.DISCORD_WEBHOOK_SECRET || 'default-secret';
+  const providedSecret = req.headers['x-webhook-secret'];
   
-  if (!authValidation.valid) {
-    return res.status(401).json({ error: 'Admin access required' });
-  }
-  
-  db.all('SELECT * FROM discord_bot_mentions ORDER BY role_name', (err, permissions) => {
-    if (err) {
-      return res.status(500).json({ error: err.message });
+  if (providedSecret === webhookSecret) {
+    // Discord bot access - return minimal data needed
+    db.all('SELECT role_id, role_name FROM discord_bot_mentions ORDER BY role_name', (err, permissions) => {
+      if (err) {
+        return res.status(500).json({ error: err.message });
+      }
+      res.json(permissions);
+    });
+  } else {
+    // Admin access required for admin panel
+    const authValidation = validateAdminToken(req.headers.authorization);
+    
+    if (!authValidation.valid) {
+      return res.status(401).json({ error: 'Admin access required' });
     }
-    res.json(permissions);
-  });
+    
+    db.all('SELECT * FROM discord_bot_mentions ORDER BY role_name', (err, permissions) => {
+      if (err) {
+        return res.status(500).json({ error: err.message });
+      }
+      res.json(permissions);
+    });
+  }
 });
 
 app.post('/api/discord/bot-mention-permissions', (req, res) => {
