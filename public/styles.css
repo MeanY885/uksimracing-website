@@ -2113,7 +2113,7 @@ main {
 /* Partners Page Styles */
 .partners-section {
     padding: 2rem 0 4rem;
-    margin-top: 160px;
+    margin-top: 100px;
     background-color: var(--primary-bg);
 }
 
@@ -2223,7 +2223,7 @@ main {
 /* Leagues Styles */
 .leagues-section {
     padding: 1rem 0 6rem;
-    margin-top: 160px;
+    margin-top: 100px;
     background-color: var(--primary-bg);
 }
 
