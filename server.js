@@ -485,9 +485,9 @@ discordBot.on('messageCreate', async (message) => {
   
   // Check if the bot was mentioned
   if (message.mentions.users.has(discordBot.user.id)) {
-    const hasPermission = await hasPermission(message.author.id, 'bot_mentions');
+    const userHasPermission = await hasPermission(message.author.id, 'bot_mentions');
     
-    if (!hasPermission) {
+    if (!userHasPermission) {
       // React with X emoji if user doesn't have permission
       try {
         await message.react('❌');
