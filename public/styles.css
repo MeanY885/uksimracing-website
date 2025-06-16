@@ -1664,7 +1664,7 @@ main {
 /* Videos Section Styles */
 .videos-section {
     padding: 2rem 0 4rem;
-    margin-top: 200px !important;
+    margin-top: 0;
     background-color: var(--primary-bg);
 }
 
@@ -2222,7 +2222,7 @@ main {
 
 /* Leagues Styles */
 .leagues-section {
-    padding: 1rem 0 6rem;
+    padding: 2rem 0 6rem;
     margin-top: 100px;
     background-color: var(--primary-bg);
 }
