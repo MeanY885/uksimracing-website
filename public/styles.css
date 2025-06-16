@@ -1663,7 +1663,7 @@ main {
 /* Videos Section Styles */
 .videos-section {
     padding: 2rem 0 4rem;
-    margin-top: 0;
+    margin-top: 200px;
     background-color: var(--primary-bg);
 }
 
@@ -2978,7 +2978,7 @@ main {
     
     /* Videos Section Responsive */
     .videos-section {
-        margin-top: 0;
+        margin-top: 140px;
     }
     
     .videos-grid {
