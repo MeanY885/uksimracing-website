@@ -315,22 +315,46 @@ passport.use(new DiscordStrategy({
   callbackURL: process.env.NODE_ENV === 'production' 
     ? `https://${DOMAIN}/auth/discord/callback`
     : `http://localhost:${HTTP_PORT}/auth/discord/callback`,
-  scope: ['identify', 'guilds.members.read']
+  scope: ['identify', 'guilds']
 }, async (accessToken, refreshToken, profile, done) => {
   try {
-    // Get user's roles in the UKSimRacing server
+    console.log('Discord OAuth2 strategy called for user:', profile.username);
+    
+    // Get user's roles in the UKSimRacing server using bot token
     const guildId = process.env.DISCORD_GUILD_ID;
+    const botToken = process.env.DISCORD_BOT_TOKEN;
     let userRoles = [];
     
-    if (guildId) {
+    if (guildId && botToken) {
       try {
+        console.log('Fetching user roles from Discord API...');
         const response = await axios.get(`https://discord.com/api/guilds/${guildId}/members/${profile.id}`, {
-          headers: { Authorization: `Bearer ${accessToken}` }
+          headers: { Authorization: `Bot ${botToken}` }
         });
         userRoles = response.data.roles || [];
+        console.log(`Successfully fetched ${userRoles.length} roles for user ${profile.username}:`, userRoles);
       } catch (error) {
-        console.log('Could not fetch user roles:', error.message);
+        console.error('Could not fetch user roles:', error.response?.status, error.response?.data || error.message);
+        
+        // Try alternative method: check if user is in guild using user token
+        try {
+          console.log('Trying alternative method with user guilds...');
+          const guildsResponse = await axios.get('https://discord.com/api/users/@me/guilds', {
+            headers: { Authorization: `Bearer ${accessToken}` }
+          });
+          
+          const isInGuild = guildsResponse.data.some(guild => guild.id === guildId);
+          console.log('User is in target guild:', isInGuild);
+          
+          if (!isInGuild) {
+            console.log('User is not in the target Discord server');
+          }
+        } catch (guildError) {
+          console.error('Could not check user guilds:', guildError.response?.status, guildError.response?.data || guildError.message);
+        }
       }
+    } else {
+      console.log('Missing Discord Guild ID or Bot Token configuration');
     }
     
     // Save or update user in database
@@ -363,6 +387,7 @@ passport.use(new DiscordStrategy({
     
     return done(null, { ...profile, roles: userRoles, accessToken });
   } catch (error) {
+    console.error('Discord OAuth2 strategy error:', error);
     return done(error, null);
   }
 }));
