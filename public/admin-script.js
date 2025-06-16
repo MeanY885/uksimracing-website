@@ -229,7 +229,19 @@ class AdminManager {
         logoutBtn.addEventListener('click', () => this.logout());
     }
     
-    logout() {
+    async logout() {
+        try {
+            // Call server logout endpoint to clear session
+            await fetch('/auth/logout', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${this.authToken}`
+                }
+            });
+        } catch (error) {
+            console.error('Error during server logout:', error);
+        }
+        
         // Clear stored authentication data
         localStorage.removeItem('adminToken');
         localStorage.removeItem('adminRole');
@@ -1946,19 +1958,31 @@ class AdminManager {
 
     // New Discord OAuth2 Authentication Methods
     async loadDiscordRolesForAuth() {
+        console.log('loadDiscordRolesForAuth called');
         const container = document.getElementById('discordAuthRoles');
+        if (!container) {
+            console.error('discordAuthRoles container not found');
+            return;
+        }
+        
         container.innerHTML = '<div class="loading">Loading Discord roles...</div>';
         
         try {
+            console.log('Fetching Discord server roles...');
             const response = await fetch('/api/discord/server-roles', {
                 headers: { 'Authorization': `Bearer ${this.authToken}` }
             });
             
+            console.log('Server roles response status:', response.status);
+            
             if (!response.ok) {
-                throw new Error('Failed to load Discord roles');
+                const errorText = await response.text();
+                console.error('Server roles error:', errorText);
+                throw new Error(`Failed to load Discord roles: ${response.status} ${errorText}`);
             }
             
             const roles = await response.json();
+            console.log('Received roles:', roles);
             
             // Get current auth settings
             const authResponse = await fetch('/api/discord/auth-roles', {
@@ -1966,11 +1990,12 @@ class AdminManager {
             });
             
             const currentAuthRoles = authResponse.ok ? await authResponse.json() : [];
+            console.log('Current auth roles:', currentAuthRoles);
             
             this.renderDiscordAuthRoles(roles, currentAuthRoles);
         } catch (error) {
             console.error('Error loading Discord roles:', error);
-            container.innerHTML = '<div class="error">Failed to load Discord roles. Check console for details.</div>';
+            container.innerHTML = `<div class="error">Failed to load Discord roles: ${error.message}</div>`;
         }
     }
 
@@ -2044,19 +2069,31 @@ class AdminManager {
 
     // New Bot Mention Permissions Methods
     async loadBotMentionPermissions() {
+        console.log('loadBotMentionPermissions called');
         const container = document.getElementById('botMentionPermissions');
+        if (!container) {
+            console.error('botMentionPermissions container not found');
+            return;
+        }
+        
         container.innerHTML = '<div class="loading">Loading Discord permissions...</div>';
         
         try {
+            console.log('Fetching Discord server roles for bot permissions...');
             const response = await fetch('/api/discord/server-roles', {
                 headers: { 'Authorization': `Bearer ${this.authToken}` }
             });
             
+            console.log('Bot permissions response status:', response.status);
+            
             if (!response.ok) {
-                throw new Error('Failed to load Discord roles');
+                const errorText = await response.text();
+                console.error('Bot permissions error:', errorText);
+                throw new Error(`Failed to load Discord roles: ${response.status} ${errorText}`);
             }
             
             const roles = await response.json();
+            console.log('Received roles for bot permissions:', roles);
             
             // Get current bot mention permissions
             const permissionsResponse = await fetch('/api/discord/bot-mention-permissions', {
