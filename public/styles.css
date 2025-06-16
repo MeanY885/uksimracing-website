@@ -1663,7 +1663,7 @@ main {
 /* Videos Section Styles */
 .videos-section {
     padding: 2rem 0 4rem;
-    margin-top: 200px;
+    margin-top: 200px !important;
     background-color: var(--primary-bg);
 }
 
