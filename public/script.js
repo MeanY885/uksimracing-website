@@ -556,7 +556,7 @@ class StatsAnimation {
         this.stats = [
             { element: document.getElementById('memberCount'), target: 2200, suffix: '+' },
             { element: document.getElementById('yearsCount'), target: 5, suffix: '' },
-            { element: document.getElementById('prizesCount'), target: 5000, suffix: '+', prefix: '£' }
+            { element: document.getElementById('prizesCount'), target: 7000, suffix: '+', prefix: '£' }
         ];
         this.init();
         this.loadLiveStats();

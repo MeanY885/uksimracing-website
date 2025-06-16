@@ -812,6 +812,22 @@ function validateAdminToken(authHeader) {
     return { valid: true, role: 'master', legacy: true };
   }
   
+  // Discord token format: discord-<base64>
+  if (token.startsWith('discord-')) {
+    try {
+      const tokenData = JSON.parse(Buffer.from(token.substring(8), 'base64').toString());
+      return { 
+        valid: true, 
+        role: tokenData.role, 
+        userId: tokenData.discordId,
+        username: tokenData.username,
+        isDiscord: true 
+      };
+    } catch (error) {
+      return { valid: false, error: 'Invalid Discord token' };
+    }
+  }
+  
   // New token format: role-authenticated-id
   const tokenParts = token.split('-');
   if (tokenParts.length >= 3) {
@@ -1839,6 +1855,18 @@ app.post('/api/download-existing-images', async (req, res) => {
   }
 });
 
+// Helper function to generate a simple token for Discord users
+function generateDiscordToken(userData) {
+  const tokenData = {
+    userId: userData.userId,
+    role: userData.role,
+    username: userData.username,
+    discordId: userData.discordId,
+    timestamp: Date.now()
+  };
+  return `discord-${Buffer.from(JSON.stringify(tokenData)).toString('base64')}`;
+}
+
 // Discord OAuth2 Routes
 app.get('/auth/discord', passport.authenticate('discord'));
 
@@ -1850,29 +1878,39 @@ app.get('/auth/discord/admin', passport.authenticate('discord', {
 app.get('/auth/discord/callback', 
   passport.authenticate('discord', { failureRedirect: '/admin-panel?error=discord_auth_failed' }),
   async (req, res) => {
-    // Check if user has admin panel access based on their Discord roles
-    const hasAccess = await hasPermission(req.user.id, 'admin_panel');
-    
-    if (hasAccess) {
-      // Generate admin token for Discord user
-      const authToken = generateJWT({ 
-        userId: req.user.id, 
-        role: 'discord_admin',
-        username: req.user.username,
-        discordId: req.user.id
-      });
+    try {
+      console.log('Discord callback received for user:', req.user.username);
       
-      // Set session data
-      req.session.discordUser = {
-        id: req.user.id,
-        username: req.user.username,
-        avatar: req.user.avatar,
-        roles: req.user.roles
-      };
+      // Check if user has admin panel access based on their Discord roles
+      const hasAccess = await hasPermission(req.user.id, 'admin_panel');
+      console.log('User has admin panel access:', hasAccess);
       
-      res.redirect(`/admin-panel?discord_login=success&token=${authToken}&role=discord_admin&username=${req.user.username}`);
-    } else {
-      res.redirect('/admin-panel?error=insufficient_discord_permissions');
+      if (hasAccess) {
+        // Generate admin token for Discord user
+        const authToken = generateDiscordToken({ 
+          userId: req.user.id, 
+          role: 'discord_admin',
+          username: req.user.username,
+          discordId: req.user.id
+        });
+        
+        // Set session data
+        req.session.discordUser = {
+          id: req.user.id,
+          username: req.user.username,
+          avatar: req.user.avatar,
+          roles: req.user.roles
+        };
+        
+        console.log('Redirecting to admin panel with success');
+        res.redirect(`/admin-panel?discord_login=success&token=${authToken}&role=discord_admin&username=${encodeURIComponent(req.user.username)}`);
+      } else {
+        console.log('User lacks sufficient permissions');
+        res.redirect('/admin-panel?error=insufficient_discord_permissions');
+      }
+    } catch (error) {
+      console.error('Discord callback error:', error);
+      res.redirect('/admin-panel?error=discord_auth_failed');
     }
   }
 );
