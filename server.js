@@ -2206,13 +2206,24 @@ app.get('/health', (req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
 
-// HTTPS redirect middleware
+// HTTPS redirect middleware (only for non-API routes and external requests)
 app.use((req, res, next) => {
+  // Skip HTTPS redirect for internal Docker requests, webhooks, API endpoints, and health checks
+  const isInternalRequest = req.get('host') === 'app:80';
+  const isApiOrWebhook = req.path.startsWith('/api/') || req.path.startsWith('/webhook/') || req.path === '/health';
+  const isLetsEncrypt = req.path.startsWith('/.well-known/');
+  
   if (!req.secure && req.get('x-forwarded-proto') !== 'https' && process.env.NODE_ENV === 'production') {
+    // Allow internal requests, webhooks, API calls, and Let's Encrypt to use HTTP
+    if (isInternalRequest || isApiOrWebhook || isLetsEncrypt) {
+      return next();
+    }
+    // Only redirect user-facing pages to HTTPS
     return res.redirect(301, `https://${req.get('host')}${req.url}`);
   }
   next();
 });
+
 
 // SSL certificate management
 async function requestSSLCertificate() {
