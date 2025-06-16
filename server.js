@@ -716,9 +716,9 @@ app.get('/leagues', (req, res) => {
 
 // Discord webhook endpoint
 app.post('/webhook/discord', async (req, res) => {
-  console.log('🔗 Webhook received');
+  console.log('🔗 Discord webhook received from:', req.ip, req.get('host'));
   console.log('Headers:', req.headers);
-  console.log('Body:', req.body);
+  console.log('Body preview:', req.body?.content?.substring(0, 100) + '...');
   
   const webhookSecret = process.env.DISCORD_WEBHOOK_SECRET || 'default-secret';
   const providedSecret = req.headers['x-webhook-secret'];
@@ -2263,10 +2263,10 @@ function getSSLCredentials() {
 async function startServer() {
   let credentials = getSSLCredentials();
   
-  // Always start HTTP server (for Let's Encrypt challenges and redirects)
+  // Always start HTTP server (for Let's Encrypt challenges and internal requests)
   const httpServer = http.createServer(app);
-  httpServer.listen(HTTP_PORT, () => {
-    console.log(`🌐 HTTP Server running on port ${HTTP_PORT}`);
+  httpServer.listen(HTTP_PORT, '0.0.0.0', () => {
+    console.log(`🌐 HTTP Server running on 0.0.0.0:${HTTP_PORT} for internal services`);
   });
 
   // If no SSL certificates, try to get them
@@ -2285,8 +2285,8 @@ async function startServer() {
   // Start HTTPS server if certificates are available
   if (credentials) {
     const httpsServer = https.createServer(credentials, app);
-    httpsServer.listen(HTTPS_PORT, () => {
-      console.log(`🔒 HTTPS Server running on port ${HTTPS_PORT}`);
+    httpsServer.listen(HTTPS_PORT, '0.0.0.0', () => {
+      console.log(`🔒 HTTPS Server running on 0.0.0.0:${HTTPS_PORT}`);
       console.log(`🎉 UKSimRacing website available at https://${DOMAIN}`);
     });
   } else {
