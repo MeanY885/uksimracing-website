@@ -361,6 +361,12 @@ main {
     padding-top: 60px !important;
 }
 
+/* Home page main element override */
+body:has(.news-section-featured) main,
+.home-page main {
+    margin-top: 0px !important;
+}
+
 /* Featured News Section */
 .news-section-featured {
     padding: clamp(1rem, 3vw, 1.5rem) 0 1rem;
