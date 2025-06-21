@@ -637,9 +637,11 @@ body:has(.news-section-featured) main,
     position: relative;
     z-index: 1;
     box-shadow: 0 3px 15px rgba(0, 0, 0, 0.08);
-    height: fit-content;
+    height: 100%;
     width: 100%;
     box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
 }
 
 .news-card:hover {
@@ -675,6 +677,9 @@ body:has(.news-section-featured) main,
 
 .news-content {
     padding: clamp(1rem, 3vw, 1.25rem);
+    flex: 1;
+    display: flex;
+    flex-direction: column;
 }
 
 .news-title {
@@ -694,6 +699,7 @@ body:has(.news-section-featured) main,
     -webkit-line-clamp: 3;
     -webkit-box-orient: vertical;
     overflow: hidden;
+    flex: 1;
 }
 
 .news-meta {

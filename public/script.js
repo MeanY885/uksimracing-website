@@ -5,15 +5,10 @@ class NewsManager {
     constructor() {
         this.newsContainer = document.getElementById('newsContainer');
         this.loadMoreBtn = document.getElementById('loadMore');
-        this.heroNewsCard = document.getElementById('heroNewsCard');
-        this.heroIndicators = document.getElementById('heroIndicators');
         this.currentOffset = 0;
-        this.limit = 10; // Load up to 10 cards total
-        this.maxCards = 10; // Maximum cards to display
+        this.limit = 2; // Load only 2 cards
+        this.maxCards = 2; // Maximum cards to display
         this.loading = false;
-        this.heroNews = [];
-        this.currentHeroIndex = 0;
-        this.heroInterval = null;
         
         this.init();
     }
@@ -21,20 +16,8 @@ class NewsManager {
     init() {
         this.loadNews();
         this.loadMoreBtn.addEventListener('click', () => this.loadMoreNews());
-        this.bindHeroControls();
     }
     
-    bindHeroControls() {
-        const prevBtn = document.getElementById('heroPrevBtn');
-        const nextBtn = document.getElementById('heroNextBtn');
-        
-        prevBtn.addEventListener('click', () => this.previousHero());
-        nextBtn.addEventListener('click', () => this.nextHero());
-        
-        // Pause auto-rotation on hover
-        this.heroNewsCard.addEventListener('mouseenter', () => this.pauseHeroRotation());
-        this.heroNewsCard.addEventListener('mouseleave', () => this.startHeroRotation());
-    }
     
     async loadNews() {
         if (this.loading) return;
@@ -43,42 +26,18 @@ class NewsManager {
         this.showLoading();
         
         try {
-            // Check for live streams first
-            const liveStreamData = await this.checkLiveStream();
-            
-            // Load all news items up to the maximum
-            const response = await fetch(`/api/news?limit=${this.maxCards}&offset=0`);
+            // Load only the 2 most recent news items
+            const response = await fetch(`/api/news?limit=2&offset=0`);
             const news = await response.json();
             
-            // If there's a live stream, it takes priority in hero section
-            if (liveStreamData) {
-                this.heroNews = [liveStreamData, ...news.slice(0, Math.min(3, news.length))];
-            } else {
-                // Hero shows the first 4 items
-                this.heroNews = news.slice(0, Math.min(4, news.length));
-            }
-            
-            // More Stories shows up to 6 cards from the remaining news
-            const regularNewsStart = liveStreamData ? 3 : 4;
-            const regularNews = news.slice(regularNewsStart, regularNewsStart + 6);
-            
-            // Render hero section
-            if (this.heroNews.length > 0) {
-                this.renderHeroNews();
-                this.startHeroRotation();
-            }
-            
-            // Render regular news
+            // Render news
             this.newsContainer.innerHTML = '';
             if (news.length === 0) {
                 this.showNoNews();
-            } else if (regularNews.length > 0) {
-                this.renderNews(regularNews);
-                // Hide load more button since we're showing all available news
-                this.loadMoreBtn.style.display = 'none';
             } else {
-                // If we have hero news but no regular news, show a message
-                this.newsContainer.innerHTML = '<div class="loading">More news coming soon...</div>';
+                this.renderNews(news);
+                // Hide load more button since we're only showing 2 items
+                this.loadMoreBtn.style.display = 'none';
             }
         } catch (error) {
             console.error('Error loading news:', error);
@@ -92,30 +51,6 @@ class NewsManager {
         await this.loadNews();
     }
     
-    async checkLiveStream() {
-        try {
-            const response = await fetch('/api/livestream');
-            const data = await response.json();
-            
-            if (data.liveStream) {
-                console.log('🔴 Live stream detected:', data.liveStream.title);
-                return {
-                    id: `livestream-${data.liveStream.id}`,
-                    title: `🔴 LIVE: ${data.liveStream.title}`,
-                    content: data.liveStream.description || 'Live streaming now on YouTube!',
-                    author: 'UKSimRacing',
-                    timestamp: data.liveStream.startTime || new Date().toISOString(),
-                    image_url: data.liveStream.thumbnail,
-                    isLiveStream: true,
-                    youtubeId: data.liveStream.id
-                };
-            }
-            return null;
-        } catch (error) {
-            console.log('📺 No live stream data available');
-            return null;
-        }
-    }
     
     renderNews(newsItems) {
         newsItems.forEach(item => {
@@ -321,176 +256,6 @@ class NewsManager {
         `;
     }
     
-    // Hero News Methods
-    renderHeroNews() {
-        if (this.heroNews.length === 0) return;
-        
-        this.renderCurrentHero();
-        this.renderHeroIndicators();
-        this.startHeroRotation();
-    }
-    
-    renderCurrentHero() {
-        if (this.heroNews.length === 0) return;
-        
-        // Show 2 cards at a time, with rotation
-        const currentItem = this.heroNews[this.currentHeroIndex];
-        const nextIndex = (this.currentHeroIndex + 1) % this.heroNews.length;
-        const nextItem = this.heroNews.length > 1 ? this.heroNews[nextIndex] : null;
-        
-        let layoutClass = 'hero-content-single';
-        let cardHTML = '';
-        
-        if (this.heroNews.length === 1) {
-            layoutClass = 'hero-content-single';
-            cardHTML = this.createHeroCard(currentItem, 'single');
-        } else {
-            layoutClass = 'hero-content-dual';
-            cardHTML = this.createHeroCard(currentItem, 'dual');
-            if (nextItem) {
-                cardHTML += this.createHeroCard(nextItem, 'dual');
-            }
-        }
-        
-        this.heroNewsCard.innerHTML = `
-            <div class="${layoutClass}">
-                ${cardHTML}
-            </div>
-        `;
-    }
-    
-    createHeroCard(item, position) {
-        const formattedDate = this.formatDate(item.timestamp);
-        const excerpt = this.createExcerpt(item.content, position === 'single' ? 1200 : 600);
-        
-        // Special handling for live streams
-        const liveIndicator = item.isLiveStream ? 
-            `<div style="position: absolute; top: 15px; left: 15px; background: red; color: white; padding: 0.5rem 1rem; border-radius: 20px; font-weight: 600; font-size: 0.9rem; z-index: 5;">🔴 LIVE</div>` : 
-            '';
-        
-        // Use local image if available, fallback to original URL
-        const imageSource = item.local_image_path || item.image_url;
-        
-        const cardHTML = `
-            <div class="hero-card ${position}" data-item-id="${item.id}">
-                <div class="hero-card-image-content" style="position: relative;">
-                    ${liveIndicator}
-                    ${imageSource ? 
-                        `<img src="${imageSource}" alt="${item.title}" class="hero-card-image">` : 
-                        `<div class="hero-placeholder">
-                            <div style="font-size: 3rem; color: var(--accent-color);">${item.isLiveStream ? '📺' : '📰'}</div>
-                            <div style="color: var(--text-secondary); margin-top: 1rem;">${item.isLiveStream ? 'Live Stream' : 'News Article'}</div>
-                        </div>`
-                    }
-                    ${item.isLiveStream ? 
-                        `<div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 60px; height: 60px; background: rgba(255, 0, 0, 0.8); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 1.5rem; pointer-events: none;">▶</div>` : 
-                        ''
-                    }
-                </div>
-                <div class="hero-card-text-content">
-                    <h3 class="hero-card-title">${item.title}</h3>
-                    <div class="hero-card-excerpt">${this.formatContentWithParagraphs(excerpt)}</div>
-                    <div class="hero-card-meta">
-                        <span class="hero-card-author">By ${item.author}</span>
-                        <span class="hero-card-date">${formattedDate}</span>
-                    </div>
-                    ${item.isLiveStream ? 
-                        `<div style="margin-top: 1rem;">
-                            <button style="background: red; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 0.9rem;" onclick="event.stopPropagation(); window.open('https://www.youtube.com/watch?v=${item.youtubeId}', '_blank')">
-                                🔴 Watch Live
-                            </button>
-                        </div>` : 
-                        ''
-                    }
-                </div>
-            </div>
-        `;
-        
-        // Add click handler after creating the element
-        setTimeout(() => {
-            const cardElement = this.heroNewsCard.querySelector(`[data-item-id="${item.id}"]`);
-            if (cardElement) {
-                cardElement.style.cursor = 'pointer';
-                cardElement.onclick = (e) => {
-                    if (e.target.tagName === 'BUTTON') return; // Don't interfere with button clicks
-                    if (item.isLiveStream) {
-                        window.open(`https://www.youtube.com/watch?v=${item.youtubeId}`, '_blank');
-                    } else {
-                        this.showNewsModal(item);
-                    }
-                };
-            }
-        }, 10);
-        
-        return cardHTML;
-    }
-    
-    renderHeroIndicators() {
-        if (this.heroNews.length <= 1) {
-            this.heroIndicators.innerHTML = '';
-            return;
-        }
-        
-        // Create indicators for pairs when showing dual layout
-        const totalPairs = Math.ceil(this.heroNews.length / 2);
-        const currentPair = Math.floor(this.currentHeroIndex / 2);
-        
-        this.heroIndicators.innerHTML = Array.from({length: totalPairs}, (_, pairIndex) => 
-            `<div class="hero-indicator ${pairIndex === currentPair ? 'active' : ''}" 
-                  onclick="newsManager.goToHero(${pairIndex * 2})"></div>`
-        ).join('');
-    }
-    
-    goToHero(index) {
-        if (index >= 0 && index < this.heroNews.length) {
-            this.currentHeroIndex = index;
-            this.renderCurrentHero();
-            this.renderHeroIndicators();
-            this.resetHeroRotation();
-        }
-    }
-    
-    nextHero() {
-        if (this.heroNews.length <= 1) return;
-        
-        // Move by 2 when showing dual layout, by 1 when single
-        const step = this.heroNews.length > 1 ? 2 : 1;
-        this.currentHeroIndex = (this.currentHeroIndex + step) % this.heroNews.length;
-        this.renderCurrentHero();
-        this.renderHeroIndicators();
-        this.resetHeroRotation();
-    }
-    
-    previousHero() {
-        if (this.heroNews.length <= 1) return;
-        
-        // Move by 2 when showing dual layout, by 1 when single  
-        const step = this.heroNews.length > 1 ? 2 : 1;
-        this.currentHeroIndex = (this.currentHeroIndex - step + this.heroNews.length) % this.heroNews.length;
-        this.renderCurrentHero();
-        this.renderHeroIndicators();
-        this.resetHeroRotation();
-    }
-    
-    startHeroRotation() {
-        if (this.heroNews.length <= 1) return;
-        
-        this.heroInterval = setInterval(() => {
-            this.nextHero();
-        }, 30000); // Rotate every 30 seconds
-    }
-    
-    pauseHeroRotation() {
-        if (this.heroInterval) {
-            clearInterval(this.heroInterval);
-            this.heroInterval = null;
-        }
-    }
-    
-    resetHeroRotation() {
-        this.pauseHeroRotation();
-        this.startHeroRotation();
-    }
 }
 
 // Smooth scrolling for navigation links
