@@ -6,8 +6,8 @@ class NewsManager {
         this.newsContainer = document.getElementById('newsContainer');
         this.loadMoreBtn = document.getElementById('loadMore');
         this.currentOffset = 0;
-        this.limit = 2; // Load only 2 cards
-        this.maxCards = 2; // Maximum cards to display
+        this.limit = 6; // Load 6 cards
+        this.maxCards = 6; // Maximum cards to display
         this.loading = false;
         
         this.init();
@@ -26,8 +26,8 @@ class NewsManager {
         this.showLoading();
         
         try {
-            // Load only the 2 most recent news items
-            const response = await fetch(`/api/news?limit=2&offset=0`);
+            // Load the 6 most recent news items
+            const response = await fetch(`/api/news?limit=6&offset=0`);
             const news = await response.json();
             
             // Render news
@@ -36,7 +36,7 @@ class NewsManager {
                 this.showNoNews();
             } else {
                 this.renderNews(news);
-                // Hide load more button since we're only showing 2 items
+                // Hide load more button since we're showing 6 items
                 this.loadMoreBtn.style.display = 'none';
             }
         } catch (error) {

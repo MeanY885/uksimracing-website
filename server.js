@@ -128,6 +128,7 @@ function initDatabase() {
     duration INTEGER,
     view_count INTEGER DEFAULT 0,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    published_at DATETIME,
     created_by TEXT,
     sort_order INTEGER DEFAULT 0
   )`);
@@ -218,6 +219,13 @@ function initDatabase() {
     // This will error if column already exists, which is fine
     if (err && !err.message.includes('duplicate column name')) {
       console.log('Note: sort_order column may already exist');
+    }
+  });
+  
+  // Add published_at column if it doesn't exist (for existing databases)
+  db.run(`ALTER TABLE videos ADD COLUMN published_at DATETIME`, (err) => {
+    if (err && !err.message.includes('duplicate column name')) {
+      console.log('Note: published_at column may already exist');
     }
   });
   
@@ -593,8 +601,8 @@ async function syncYouTubeVideos() {
       
       await new Promise((resolve, reject) => {
         db.run(
-          'INSERT INTO videos (title, description, youtube_id, thumbnail_url, duration, created_by, sort_order, view_count) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-          [video.title, video.description, video.youtube_id, thumbnailUrl, video.duration, 'youtube-sync', videos.length - i, video.view_count || 0],
+          'INSERT INTO videos (title, description, youtube_id, thumbnail_url, duration, created_by, sort_order, view_count, published_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          [video.title, video.description, video.youtube_id, thumbnailUrl, video.duration, 'youtube-sync', videos.length - i, video.view_count || 0, video.published_at],
           function(err) {
             if (err) {
               console.error('Error creating video:', err.message);
@@ -1286,7 +1294,7 @@ app.get('/api/videos', (req, res) => {
   const offset = req.query.offset || 0;
   
   db.all(
-    'SELECT * FROM videos WHERE created_by = ? ORDER BY sort_order DESC, created_at DESC LIMIT ? OFFSET ?',
+    'SELECT * FROM videos WHERE created_by = ? ORDER BY sort_order DESC, COALESCE(published_at, created_at) DESC LIMIT ? OFFSET ?',
     ['youtube-sync', limit, offset],
     (err, rows) => {
       if (err) {
@@ -1323,8 +1331,8 @@ app.post('/api/videos', (req, res) => {
   const createdBy = authValidation.legacy ? 'master' : authValidation.userId;
   
   db.run(
-    'INSERT INTO videos (title, description, video_url, youtube_id, thumbnail_url, duration, created_by) VALUES (?, ?, ?, ?, ?, ?, ?)',
-    [title, description, video_url, youtubeId, thumbnailUrl, duration, createdBy],
+    'INSERT INTO videos (title, description, video_url, youtube_id, thumbnail_url, duration, created_by, published_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+    [title, description, video_url, youtubeId, thumbnailUrl, duration, createdBy, new Date().toISOString()],
     function(err) {
       if (err) {
         console.error('Error creating video:', err.message);
@@ -1870,8 +1878,8 @@ app.post('/api/sync-youtube', async (req, res) => {
     
     await new Promise((resolve, reject) => {
       db.run(
-        'INSERT INTO videos (title, description, youtube_id, thumbnail_url, duration, created_by, sort_order, view_count) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-        [video.title, video.description, video.youtube_id, thumbnailUrl, video.duration, 'youtube-sync', videos.length - i, video.view_count || 0],
+        'INSERT INTO videos (title, description, youtube_id, thumbnail_url, duration, created_by, sort_order, view_count, published_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [video.title, video.description, video.youtube_id, thumbnailUrl, video.duration, 'youtube-sync', videos.length - i, video.view_count || 0, video.published_at],
         function(err) {
           if (err) {
             console.error('Error creating video:', err.message);

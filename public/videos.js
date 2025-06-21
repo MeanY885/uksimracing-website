@@ -72,7 +72,7 @@ class VideosManager {
         card.className = 'video-card';
         card.dataset.id = video.id;
         
-        const formattedDate = this.formatDate(video.created_at);
+        const formattedDate = this.formatDate(video.published_at || video.created_at);
         const duration = this.formatDuration(video.duration);
         
         card.innerHTML = `
@@ -146,7 +146,7 @@ class VideosManager {
         }
         
         // Populate modal with content
-        const formattedDate = this.formatDate(video.created_at);
+        const formattedDate = this.formatDate(video.published_at || video.created_at);
         document.getElementById('modalVideoTitle').textContent = video.title;
         document.getElementById('modalVideoDescription').textContent = video.description || '';
         document.getElementById('modalVideoViews').textContent = `${video.view_count || '0'} views`;
