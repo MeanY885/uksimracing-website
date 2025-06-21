@@ -714,6 +714,40 @@ app.get('/leagues', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'leagues.html'));
 });
 
+// Function to get next image from rotation
+const getNextRotationImage = () => {
+  const images = [
+    '2025-01-13_19-56-00_0.png',
+    '2025-03-11_19-46-24_0.png',
+    '2025-04-15_14-19-09_0.png',
+    '2025-04-15_14-30-06_0.png',
+    '2025-04-15_14-35-54_0.png',
+    '2025-04-15_15-04-34_0.png',
+    '2025-05-13_14-47-04_0.png',
+    '2025-05-13_15-10-43_0.png',
+    '2025-05-19_15-29-07_0.png',
+    '2025-05-26_21-44-50_0.png',
+    '2025-05-27_14-57-52_0.png',
+    '2025-05-27_15-10-05_0.png',
+    '2025-06-03_15-04-33_0.png',
+    '2025-06-03_15-08-01_0.png',
+    '2025-06-03_15-17-54_0.png'
+  ];
+  
+  // Get next image based on current count of news articles
+  return new Promise((resolve) => {
+    db.get('SELECT COUNT(*) as count FROM news', (err, row) => {
+      if (err) {
+        console.error('Error getting news count for image rotation:', err);
+        resolve(images[0]); // Default to first image
+        return;
+      }
+      const index = (row.count || 0) % images.length;
+      resolve(images[index]);
+    });
+  });
+};
+
 // Discord webhook endpoint
 app.post('/webhook/discord', async (req, res) => {
   console.log('🔗 Discord webhook received from:', req.ip, req.get('host'));
@@ -737,18 +771,22 @@ app.post('/webhook/discord', async (req, res) => {
     return res.status(400).json({ error: 'Missing required fields' });
   }
   
-  // Extract title from first line of content
-  const lines = content.split('\n');
-  const title = lines[0].substring(0, 100); // First line as title, max 100 chars
-  const body = lines.slice(1).join('\n') || content;
+  // Split content into paragraphs and use first paragraph as title
+  const paragraphs = content.split('\n\n').filter(p => p.trim());
+  const title = paragraphs[0] ? paragraphs[0].trim().substring(0, 100) : content.split('\n')[0].substring(0, 100);
+  const body = paragraphs.length > 1 ? paragraphs.slice(1).join('\n\n') : paragraphs.slice(1).join('\n\n') || '';
   
   // Get image URL from attachments if available
   const imageUrl = attachments && attachments[0] ? attachments[0].url : null;
   
-  // Download and save image locally if present
+  // Download and save image locally if present, or use rotation image
   let localImagePath = null;
   if (imageUrl) {
     localImagePath = await downloadAndSaveImage(imageUrl, message_id);
+  } else {
+    // No image provided, use rotation image
+    const rotationImage = await getNextRotationImage();
+    localImagePath = `/uploads/Images/${rotationImage}`;
   }
   
   db.run(
@@ -1097,7 +1135,7 @@ app.put('/api/news/:id', (req, res) => {
 });
 
 // Create news endpoint
-app.post('/api/news', (req, res) => {
+app.post('/api/news', async (req, res) => {
   const { title, content, author, image_url } = req.body;
   const authValidation = validateAdminToken(req.headers.authorization);
   
@@ -1105,11 +1143,25 @@ app.post('/api/news', (req, res) => {
     return res.status(401).json({ error: 'Unauthorized' });
   }
   
-  if (!title || !content || !author) {
-    return res.status(400).json({ error: 'Title, content, and author are required' });
+  if (!content || !author) {
+    return res.status(400).json({ error: 'Content and author are required' });
   }
   
+  // Parse content: first paragraph as title, rest as body
+  const paragraphs = content.split('\n\n').filter(p => p.trim());
+  const parsedTitle = title || (paragraphs[0] ? paragraphs[0].trim().substring(0, 100) : 'Untitled');
+  const parsedContent = title ? content : (paragraphs.length > 1 ? paragraphs.slice(1).join('\n\n') : '');
+  
   const timestamp = new Date().toISOString();
+  
+  // If no image provided, get rotation image
+  let finalImageUrl = image_url;
+  let localImagePath = null;
+  
+  if (!image_url) {
+    const rotationImage = await getNextRotationImage();
+    localImagePath = `/uploads/Images/${rotationImage}`;
+  }
   
   // Get the lowest sort_order and subtract 1 to put new post at the top
   db.get('SELECT MIN(sort_order) as min_order FROM news', (err, row) => {
@@ -1121,8 +1173,8 @@ app.post('/api/news', (req, res) => {
     const sortOrder = (row.min_order || 1) - 1;
     
     db.run(
-      'INSERT INTO news (title, content, author, image_url, timestamp, sort_order) VALUES (?, ?, ?, ?, ?, ?)',
-      [title, content, author, image_url || null, timestamp, sortOrder],
+      'INSERT INTO news (title, content, author, image_url, local_image_path, timestamp, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [parsedTitle, parsedContent, author, finalImageUrl || null, localImagePath, timestamp, sortOrder],
       function(err) {
         if (err) {
           res.status(500).json({ error: err.message });
