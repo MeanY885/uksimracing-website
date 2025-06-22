@@ -2991,7 +2991,7 @@ body:has(.news-section-featured) main,
     
     /* Videos Section Responsive */
     .videos-section {
-        margin-top: 200px;
+        margin-top: 60px;
     }
     
     .videos-grid {
