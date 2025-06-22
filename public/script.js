@@ -533,9 +533,6 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log('📊 Creating StatsAnimation...');
         new StatsAnimation();
         
-        console.log('🟣 Creating CommunityStreamsManager...');
-        window.communityStreamsManager = new CommunityStreamsManager();
-        
         console.log('✅ All components initialized successfully');
     } catch (error) {
         console.error('❌ Error initializing components:', error);
