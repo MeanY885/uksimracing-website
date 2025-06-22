@@ -85,8 +85,7 @@ async function updateMemberCount() {
         const guild = client.guilds.cache.first(); // Get the first (main) guild
         if (!guild) return;
         
-        // Fetch fresh member count
-        await guild.members.fetch();
+        // Use cached member count (no need to fetch all members)
         const memberCount = guild.memberCount;
         
         console.log(`📊 Updating member count: ${memberCount}`);
@@ -98,11 +97,18 @@ async function updateMemberCount() {
             headers: {
                 'Content-Type': 'application/json',
                 'X-Webhook-Secret': WEBHOOK_SECRET
-            }
+            },
+            timeout: 10000 // 10 second timeout
         });
+        
+        console.log(`✅ Successfully updated website with member count: ${memberCount}`);
         
     } catch (error) {
         console.error('❌ Error updating member count:', error.message);
+        if (error.response) {
+            console.error('Response status:', error.response.status);
+            console.error('Response data:', error.response.data);
+        }
     }
 }
 
