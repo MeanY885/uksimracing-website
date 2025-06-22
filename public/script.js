@@ -503,9 +503,12 @@ class CommunityStreamsManager {
 document.addEventListener('DOMContentLoaded', () => {
     console.log('🎯 DOM loaded, initializing components...');
     try {
-        console.log('📰 Creating NewsManager...');
-        window.newsManager = new NewsManager();
-        console.log('📰 NewsManager created successfully');
+        // Only create NewsManager if news element exists (home page)
+        if (document.getElementById('news')) {
+            console.log('📰 Creating NewsManager...');
+            window.newsManager = new NewsManager();
+            console.log('📰 NewsManager created successfully');
+        }
         
         console.log('🔄 Creating SmoothScroll...');
         new SmoothScroll();
@@ -515,6 +518,12 @@ document.addEventListener('DOMContentLoaded', () => {
         
         console.log('📊 Creating StatsAnimation...');
         new StatsAnimation();
+        
+        // Initialize CommunityStreamsManager if community streams container exists
+        if (document.getElementById('communityStreamsContainer')) {
+            console.log('🟣 Creating CommunityStreamsManager...');
+            window.communityStreamsManager = new CommunityStreamsManager();
+        }
         
         console.log('✅ All components initialized successfully');
     } catch (error) {
