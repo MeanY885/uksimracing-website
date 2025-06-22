@@ -319,7 +319,7 @@ class NavigationManager {
 class StatsAnimation {
     constructor() {
         this.stats = [
-            { element: document.getElementById('memberCount'), target: 2200, suffix: '+' },
+            { element: document.getElementById('memberCount'), target: 2200, suffix: '' },
             { element: document.getElementById('yearsCount'), target: 5, suffix: '' },
             { element: document.getElementById('prizesCount'), target: 7000, suffix: '+', prefix: '£' }
         ];
@@ -352,15 +352,21 @@ class StatsAnimation {
             const data = await response.json();
             
             if (data.memberCount) {
-                // Update the target for member count animation
+                // Update the target for member count animation and remove suffix
                 const memberCountStat = this.stats.find(stat => stat.element && stat.element.id === 'memberCount');
                 if (memberCountStat) {
                     memberCountStat.target = data.memberCount;
+                    memberCountStat.suffix = ''; // Remove the + suffix for live data
                     console.log(`📊 Updated member count target to: ${data.memberCount}`);
                 }
             }
         } catch (error) {
             console.log('📊 Using default member count (API not available)');
+            // If API fails, show 2200+ as fallback
+            const memberCountStat = this.stats.find(stat => stat.element && stat.element.id === 'memberCount');
+            if (memberCountStat) {
+                memberCountStat.suffix = '+';
+            }
         }
     }
     
@@ -385,6 +391,118 @@ class StatsAnimation {
     }
 }
 
+// Community Streams Manager
+class CommunityStreamsManager {
+    constructor() {
+        this.streamsContainer = document.getElementById('communityStreamsContainer');
+        this.streamsSection = document.getElementById('community-streams');
+        this.loading = false;
+        
+        this.init();
+    }
+    
+    init() {
+        this.loadCommunityStreams();
+        // Refresh streams every 5 minutes
+        setInterval(() => {
+            this.loadCommunityStreams();
+        }, 5 * 60 * 1000);
+    }
+    
+    async loadCommunityStreams() {
+        if (this.loading) return;
+        
+        this.loading = true;
+        
+        try {
+            const response = await fetch('/api/twitch/streams');
+            const data = await response.json();
+            
+            if (data.streams && data.streams.length > 0) {
+                // Show the section and render streams
+                this.streamsSection.style.display = 'block';
+                this.renderStreams(data.streams);
+                console.log(`🟣 Loaded ${data.streams.length} community streams`);
+            } else {
+                // Hide the section when no streams
+                this.streamsSection.style.display = 'none';
+                console.log('🟣 No community streams found');
+            }
+        } catch (error) {
+            console.error('Error loading community streams:', error);
+            // Hide section on error
+            this.streamsSection.style.display = 'none';
+        } finally {
+            this.loading = false;
+        }
+    }
+    
+    renderStreams(streams) {
+        this.streamsContainer.innerHTML = '';
+        
+        streams.forEach(stream => {
+            const streamCard = this.createStreamCard(stream);
+            this.streamsContainer.appendChild(streamCard);
+        });
+    }
+    
+    createStreamCard(stream) {
+        const card = document.createElement('div');
+        card.className = 'stream-card';
+        
+        const viewerCount = this.formatViewerCount(stream.viewer_count);
+        const startedTime = this.formatStreamTime(stream.started_at);
+        
+        card.innerHTML = `
+            <div class="stream-thumbnail">
+                <img src="${stream.thumbnail_url}" alt="${stream.title}" class="stream-image">
+                <div class="stream-live-badge">LIVE</div>
+                <div class="stream-viewer-count">${viewerCount} viewers</div>
+            </div>
+            <div class="stream-content">
+                <div class="stream-streamer">
+                    ${stream.profile_image_url ? `<img src="${stream.profile_image_url}" alt="${stream.user_name}" class="streamer-avatar">` : ''}
+                    <div class="streamer-info">
+                        <h4 class="streamer-name">${stream.user_name}</h4>
+                        <span class="stream-game">iRacing</span>
+                    </div>
+                </div>
+                <h3 class="stream-title">${stream.title}</h3>
+                <div class="stream-meta">
+                    <span class="stream-time">Started ${startedTime}</span>
+                </div>
+            </div>
+        `;
+        
+        // Add click handler to open Twitch stream
+        card.addEventListener('click', () => {
+            window.open(stream.twitch_url, '_blank');
+        });
+        
+        return card;
+    }
+    
+    formatViewerCount(count) {
+        if (count >= 1000) {
+            return (count / 1000).toFixed(1) + 'K';
+        }
+        return count.toString();
+    }
+    
+    formatStreamTime(startedAt) {
+        const startTime = new Date(startedAt);
+        const now = new Date();
+        const diffMinutes = Math.floor((now - startTime) / (1000 * 60));
+        
+        if (diffMinutes < 60) {
+            return `${diffMinutes}m ago`;
+        } else {
+            const hours = Math.floor(diffMinutes / 60);
+            return `${hours}h ago`;
+        }
+    }
+}
+
 
 
 // Initialize all components when DOM is loaded
@@ -404,6 +522,8 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log('📊 Creating StatsAnimation...');
         new StatsAnimation();
         
+        console.log('🟣 Creating CommunityStreamsManager...');
+        window.communityStreamsManager = new CommunityStreamsManager();
         
         console.log('✅ All components initialized successfully');
     } catch (error) {

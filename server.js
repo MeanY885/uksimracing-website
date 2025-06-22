@@ -630,6 +630,7 @@ function setupAutoYouTubeSync() {
     console.log('🚀 Running initial YouTube sync...');
     syncYouTubeVideos();
     checkLiveStreams();
+    checkTwitchStreams();
   }, 30000);
   
   // Schedule automatic sync every hour (0 minutes of every hour)
@@ -640,16 +641,17 @@ function setupAutoYouTubeSync() {
     timezone: "Europe/London" // UK timezone for UKSimRacing
   });
   
-  // Check for live streams every 15 minutes
-  cron.schedule('*/15 * * * *', () => {
+  // Check for live streams every 10 minutes
+  cron.schedule('*/10 * * * *', () => {
     console.log('📺 Live stream check triggered');
     checkLiveStreams();
+    checkTwitchStreams();
   }, {
     timezone: "Europe/London" // UK timezone for UKSimRacing
   });
   
   console.log('⏰ Automatic YouTube sync scheduled - runs every hour');
-  console.log('📺 Live stream check scheduled - runs every 15 minutes');
+  console.log('📺 Live stream check scheduled - runs every 10 minutes');
 }
 
 // Check for live streams function
@@ -694,6 +696,108 @@ async function checkLiveStreams() {
   } catch (error) {
     console.error('❌ Live stream check failed:', error.message);
     global.liveStreamData = null;
+  }
+}
+
+// Check for community Twitch streams
+async function checkTwitchStreams() {
+  const twitchClientId = process.env.TWITCH_CLIENT_ID;
+  const twitchClientSecret = process.env.TWITCH_CLIENT_SECRET;
+  
+  if (!twitchClientId || !twitchClientSecret) {
+    console.log('⚠️ Twitch API credentials not configured - skipping community stream check');
+    global.twitchCommunityStreams = [];
+    return;
+  }
+  
+  try {
+    console.log('🟣 Checking for community Twitch streams...');
+    
+    // Get Twitch OAuth token
+    const tokenResponse = await axios.post('https://id.twitch.tv/oauth2/token', {
+      client_id: twitchClientId,
+      client_secret: twitchClientSecret,
+      grant_type: 'client_credentials'
+    });
+    
+    if (!tokenResponse.data.access_token) {
+      throw new Error('Failed to get Twitch access token');
+    }
+    
+    const accessToken = tokenResponse.data.access_token;
+    
+    // Search for streams with UKSR or UKSimRacing in title, playing iRacing
+    const searchTerms = ['UKSR', 'UKSimRacing'];
+    let communityStreams = [];
+    
+    for (const term of searchTerms) {
+      const streamsResponse = await axios.get(`https://api.twitch.tv/helix/streams`, {
+        headers: {
+          'Client-ID': twitchClientId,
+          'Authorization': `Bearer ${accessToken}`
+        },
+        params: {
+          game_name: 'iRacing',
+          title: term,
+          first: 10
+        }
+      });
+      
+      if (streamsResponse.data.data && streamsResponse.data.data.length > 0) {
+        // Filter streams that have UKSR or UKSimRacing in title (case insensitive)
+        const filteredStreams = streamsResponse.data.data.filter(stream => 
+          stream.title.toLowerCase().includes(term.toLowerCase())
+        );
+        
+        communityStreams = communityStreams.concat(filteredStreams);
+      }
+    }
+    
+    // Remove duplicates based on user_id
+    const uniqueStreams = communityStreams.filter((stream, index, self) =>
+      index === self.findIndex(s => s.user_id === stream.user_id)
+    );
+    
+    // Get user details for the streams
+    if (uniqueStreams.length > 0) {
+      const userIds = uniqueStreams.map(stream => stream.user_id);
+      const usersResponse = await axios.get(`https://api.twitch.tv/helix/users`, {
+        headers: {
+          'Client-ID': twitchClientId,
+          'Authorization': `Bearer ${accessToken}`
+        },
+        params: {
+          id: userIds
+        }
+      });
+      
+      // Combine stream data with user data
+      const streamsWithUserData = uniqueStreams.map(stream => {
+        const user = usersResponse.data.data.find(u => u.id === stream.user_id);
+        return {
+          id: stream.id,
+          user_id: stream.user_id,
+          user_login: stream.user_login,
+          user_name: stream.user_name,
+          title: stream.title,
+          viewer_count: stream.viewer_count,
+          started_at: stream.started_at,
+          thumbnail_url: stream.thumbnail_url.replace('{width}', '320').replace('{height}', '180'),
+          profile_image_url: user ? user.profile_image_url : null,
+          twitch_url: `https://www.twitch.tv/${stream.user_login}`
+        };
+      });
+      
+      global.twitchCommunityStreams = streamsWithUserData;
+      console.log(`🟣 Found ${streamsWithUserData.length} community streams on Twitch playing iRacing`);
+    } else {
+      global.twitchCommunityStreams = [];
+      console.log('🟣 No community streams found on Twitch');
+    }
+    
+  } catch (error) {
+    console.error('❌ Twitch community stream check failed:', error.message);
+    global.twitchCommunityStreams = [];
   }
 }
 
@@ -847,6 +951,12 @@ app.get('/api/stats', (req, res) => {
 app.get('/api/livestream', (req, res) => {
   const liveStream = global.liveStreamData || null;
   res.json({ liveStream });
+});
+
+// API endpoint to get community Twitch streams
+app.get('/api/twitch/streams', (req, res) => {
+  const streams = global.twitchCommunityStreams || [];
+  res.json({ streams });
 });
 
 // Admin authentication endpoint
