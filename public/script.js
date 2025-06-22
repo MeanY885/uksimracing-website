@@ -327,27 +327,10 @@ class StatsAnimation {
     }
     
     init() {
-        const observer = new IntersectionObserver((entries) => {
-            entries.forEach(entry => {
-                if (entry.isIntersecting) {
-                    // Load live stats first, then animate
-                    this.loadLiveStats().then(() => {
-                        this.animateStats();
-                    });
-                    observer.unobserve(entry.target);
-                }
-            });
+        // Always load live stats and animate on all pages
+        this.loadLiveStats().then(() => {
+            this.animateStats();
         });
-        
-        const newsSection = document.getElementById('news');
-        if (newsSection) {
-            observer.observe(newsSection);
-        } else {
-            // If no section found, load stats then trigger animation immediately
-            this.loadLiveStats().then(() => {
-                this.animateStats();
-            });
-        }
     }
     
     async loadLiveStats() {
