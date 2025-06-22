@@ -714,6 +714,7 @@ async function checkTwitchStreams() {
     console.log('🟣 Checking for community Twitch streams...');
     
     // Get Twitch OAuth token
+    console.log('🟣 Requesting Twitch OAuth token...');
     const tokenResponse = await axios.post('https://id.twitch.tv/oauth2/token', {
       client_id: twitchClientId,
       client_secret: twitchClientSecret,
@@ -724,33 +725,42 @@ async function checkTwitchStreams() {
       throw new Error('Failed to get Twitch access token');
     }
     
+    console.log('🟣 Successfully obtained Twitch access token');
     const accessToken = tokenResponse.data.access_token;
     
-    // Search for streams with UKSR or UKSimRacing in title, playing iRacing
-    const searchTerms = ['UKSR', 'UKSimRacing'];
+    // Get all streams playing iRacing, then filter by title
+    console.log('🟣 Fetching all iRacing streams...');
+    const streamsResponse = await axios.get(`https://api.twitch.tv/helix/streams`, {
+      headers: {
+        'Client-ID': twitchClientId,
+        'Authorization': `Bearer ${accessToken}`
+      },
+      params: {
+        game_name: 'iRacing',
+        first: 100  // Get more streams to search through
+      }
+    });
+    
+    console.log(`🟣 Found ${streamsResponse.data.data?.length || 0} total iRacing streams`);
+    
     let communityStreams = [];
     
-    for (const term of searchTerms) {
-      const streamsResponse = await axios.get(`https://api.twitch.tv/helix/streams`, {
-        headers: {
-          'Client-ID': twitchClientId,
-          'Authorization': `Bearer ${accessToken}`
-        },
-        params: {
-          game_name: 'iRacing',
-          title: term,
-          first: 10
+    if (streamsResponse.data.data && streamsResponse.data.data.length > 0) {
+      // Filter streams that have UKSR or UKSimRacing in title (case insensitive)
+      const searchTerms = ['UKSR', 'UKSimRacing'];
+      
+      communityStreams = streamsResponse.data.data.filter(stream => {
+        const title = stream.title.toLowerCase();
+        const hasMatchingTerm = searchTerms.some(term => title.includes(term.toLowerCase()));
+        
+        if (hasMatchingTerm) {
+          console.log(`🟣 Found matching stream: "${stream.title}" by ${stream.user_name}`);
         }
+        
+        return hasMatchingTerm;
       });
       
-      if (streamsResponse.data.data && streamsResponse.data.data.length > 0) {
-        // Filter streams that have UKSR or UKSimRacing in title (case insensitive)
-        const filteredStreams = streamsResponse.data.data.filter(stream => 
-          stream.title.toLowerCase().includes(term.toLowerCase())
-        );
-        
-        communityStreams = communityStreams.concat(filteredStreams);
-      }
+      console.log(`🟣 Filtered to ${communityStreams.length} community streams`);
     }
     
     // Remove duplicates based on user_id
