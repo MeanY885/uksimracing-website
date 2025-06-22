@@ -743,7 +743,7 @@ async function checkTwitchStreams() {
           'Authorization': `Bearer ${accessToken}`
         },
         params: {
-          game_name: 'iRacing',
+          game_id: '19554',  // iRacing's game ID on Twitch
           first: 100,
           ...(cursor && { after: cursor })
         }
