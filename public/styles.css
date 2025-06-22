@@ -508,7 +508,6 @@ main {
 .news-section-featured {
     padding: clamp(1rem, 3vw, 1.5rem) 0 1rem;
     background-color: var(--primary-bg);
-    margin-top: 160px;
 }
 
 /* Hero News Section */
@@ -1807,7 +1806,6 @@ main {
 .videos-section {
     padding: 2rem 0 4rem;
     background-color: var(--primary-bg);
-    margin-top: 160px;
 }
 
 .videos-grid {
