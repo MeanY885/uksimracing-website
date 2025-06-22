@@ -324,14 +324,16 @@ class StatsAnimation {
             { element: document.getElementById('prizesCount'), target: 7000, suffix: '+', prefix: '£' }
         ];
         this.init();
-        this.loadLiveStats();
     }
     
     init() {
         const observer = new IntersectionObserver((entries) => {
             entries.forEach(entry => {
                 if (entry.isIntersecting) {
-                    this.animateStats();
+                    // Load live stats first, then animate
+                    this.loadLiveStats().then(() => {
+                        this.animateStats();
+                    });
                     observer.unobserve(entry.target);
                 }
             });
@@ -341,26 +343,35 @@ class StatsAnimation {
         if (newsSection) {
             observer.observe(newsSection);
         } else {
-            // If no section found, trigger animation immediately
-            this.animateStats();
+            // If no section found, load stats then trigger animation immediately
+            this.loadLiveStats().then(() => {
+                this.animateStats();
+            });
         }
     }
     
     async loadLiveStats() {
         try {
+            console.log('📊 Fetching live stats from /api/stats...');
             const response = await fetch('/api/stats');
             const data = await response.json();
+            
+            console.log('📊 Received stats data:', data);
             
             if (data.memberCount) {
                 // Update the target for member count animation and remove suffix
                 const memberCountStat = this.stats.find(stat => stat.element && stat.element.id === 'memberCount');
                 if (memberCountStat) {
+                    console.log(`📊 Updating member count from ${memberCountStat.target} to ${data.memberCount}`);
                     memberCountStat.target = data.memberCount;
                     memberCountStat.suffix = ''; // Remove the + suffix for live data
                     console.log(`📊 Updated member count target to: ${data.memberCount}`);
                 }
+            } else {
+                console.log('📊 No memberCount in response data');
             }
         } catch (error) {
+            console.log('📊 Error loading stats:', error);
             console.log('📊 Using default member count (API not available)');
             // If API fails, show 2200+ as fallback
             const memberCountStat = this.stats.find(stat => stat.element && stat.element.id === 'memberCount');
