@@ -23,16 +23,25 @@ class VideosManager {
         this.showLoading();
         
         try {
+            console.log(`🎥 Fetching videos from /api/videos?limit=${this.limit}&offset=${this.currentOffset}`);
             const response = await fetch(`/api/videos?limit=${this.limit}&offset=${this.currentOffset}`);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            
             const videos = await response.json();
+            console.log(`🎥 Received ${videos.length} videos from API`);
             
             if (this.currentOffset === 0) {
                 this.videosContainer.innerHTML = '';
             }
             
             if (videos.length === 0 && this.currentOffset === 0) {
+                console.log('🎥 No videos found, showing no videos message');
                 this.showNoVideos();
             } else if (videos.length > 0) {
+                console.log('🎥 Rendering videos');
                 this.renderVideos(videos);
                 this.currentOffset += videos.length;
                 
@@ -47,7 +56,7 @@ class VideosManager {
                 this.loadMoreBtn.style.display = 'none';
             }
         } catch (error) {
-            console.error('Error loading videos:', error);
+            console.error('🎥 Error loading videos:', error);
             this.showError();
         } finally {
             this.loading = false;
