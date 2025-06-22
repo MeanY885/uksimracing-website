@@ -728,28 +728,54 @@ async function checkTwitchStreams() {
     console.log('🟣 Successfully obtained Twitch access token');
     const accessToken = tokenResponse.data.access_token;
     
-    // Get all streams playing iRacing, then filter by title
-    console.log('🟣 Fetching all iRacing streams...');
-    const streamsResponse = await axios.get(`https://api.twitch.tv/helix/streams`, {
-      headers: {
-        'Client-ID': twitchClientId,
-        'Authorization': `Bearer ${accessToken}`
-      },
-      params: {
-        game_name: 'iRacing',
-        first: 1000  // Get more streams to search through
-      }
-    });
+    // Get up to 1000 streams playing iRacing using pagination (10 pages of 100 each)
+    console.log('🟣 Fetching iRacing streams with pagination...');
+    let allStreams = [];
+    let cursor = null;
+    const maxPages = 10;
     
-    console.log(`🟣 Found ${streamsResponse.data.data?.length || 0} total iRacing streams`);
+    for (let page = 0; page < maxPages; page++) {
+      console.log(`🟣 Fetching page ${page + 1}/${maxPages}...`);
+      
+      const streamsResponse = await axios.get(`https://api.twitch.tv/helix/streams`, {
+        headers: {
+          'Client-ID': twitchClientId,
+          'Authorization': `Bearer ${accessToken}`
+        },
+        params: {
+          game_name: 'iRacing',
+          first: 100,
+          ...(cursor && { after: cursor })
+        }
+      });
+      
+      if (streamsResponse.data.data && streamsResponse.data.data.length > 0) {
+        allStreams = allStreams.concat(streamsResponse.data.data);
+        console.log(`🟣 Page ${page + 1}: Found ${streamsResponse.data.data.length} streams (total: ${allStreams.length})`);
+      }
+      
+      // Get pagination cursor for next page
+      cursor = streamsResponse.data.pagination?.cursor;
+      if (!cursor) {
+        console.log(`🟣 No more pages available after page ${page + 1}`);
+        break;
+      }
+      
+      // Small delay to avoid rate limiting
+      if (page < maxPages - 1) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+    }
+    
+    console.log(`🟣 Found ${allStreams.length} total iRacing streams across all pages`);
     
     let communityStreams = [];
     
-    if (streamsResponse.data.data && streamsResponse.data.data.length > 0) {
+    if (allStreams.length > 0) {
       // Filter streams that have UKSR or UKSimRacing in title (case insensitive)
       const searchTerms = ['UKSR', 'UKSimRacing'];
       
-      communityStreams = streamsResponse.data.data.filter(stream => {
+      communityStreams = allStreams.filter(stream => {
         const title = stream.title.toLowerCase();
         const hasMatchingTerm = searchTerms.some(term => title.includes(term.toLowerCase()));
         
