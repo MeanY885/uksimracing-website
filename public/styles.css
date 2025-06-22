@@ -371,6 +371,7 @@ body:has(.news-section-featured) main,
 /* Videos page main element override - reduce gap */
 .videos-section main,
 body:has(.videos-section) main {
+    margin-top: 30px;
     padding-top: 20px !important;
 }
 
@@ -1633,6 +1634,7 @@ body:has(.videos-section) main {
     .news-grid {
         grid-template-columns: 1fr;
         gap: 2rem;
+        padding-block-start: 160px;
     }
 }
 
