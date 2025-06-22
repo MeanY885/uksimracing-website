@@ -737,7 +737,7 @@ async function checkTwitchStreams() {
       },
       params: {
         game_name: 'iRacing',
-        first: 100  // Get more streams to search through
+        first: 1000  // Get more streams to search through
       }
     });
     
