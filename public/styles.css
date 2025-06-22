@@ -18,7 +18,7 @@
     --gradient: linear-gradient(135deg, #00b4d8 0%, #0077b6 100%);
     
     /* Universal Spacing System */
-    --header-height: 180px;
+    --header-height: 140px;
     --content-spacing: clamp(20px, 4vw, 40px);
     --section-spacing: clamp(1rem, 3vw, 2rem);
 }
