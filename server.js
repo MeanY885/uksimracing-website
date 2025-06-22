@@ -772,21 +772,30 @@ async function checkTwitchStreams() {
     let communityStreams = [];
     
     if (allStreams.length > 0) {
+      // Debug: Log first 20 stream titles to verify data
+      console.log('🟣 Sample stream titles (first 20):');
+      allStreams.slice(0, 20).forEach((stream, index) => {
+        console.log(`  ${index + 1}. "${stream.title}" by ${stream.user_name}`);
+      });
+      
       // Filter streams that have UKSR or UKSimRacing in title (case insensitive)
       const searchTerms = ['UKSR', 'UKSimRacing'];
+      console.log(`🟣 Searching for terms: ${searchTerms.join(', ')}`);
       
       communityStreams = allStreams.filter(stream => {
         const title = stream.title.toLowerCase();
-        const hasMatchingTerm = searchTerms.some(term => title.includes(term.toLowerCase()));
-        
-        if (hasMatchingTerm) {
-          console.log(`🟣 Found matching stream: "${stream.title}" by ${stream.user_name}`);
-        }
+        const hasMatchingTerm = searchTerms.some(term => {
+          const match = title.includes(term.toLowerCase());
+          if (match) {
+            console.log(`🟣 MATCH FOUND: "${stream.title}" contains "${term}"`);
+          }
+          return match;
+        });
         
         return hasMatchingTerm;
       });
       
-      console.log(`🟣 Filtered to ${communityStreams.length} community streams`);
+      console.log(`🟣 Filtered to ${communityStreams.length} community streams out of ${allStreams.length} total`);
     }
     
     // Remove duplicates based on user_id
