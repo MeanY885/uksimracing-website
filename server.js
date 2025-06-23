@@ -1035,10 +1035,80 @@ app.post('/webhook/discord', async (req, res) => {
     return res.status(400).json({ error: 'Missing required fields' });
   }
   
-  // Split content into paragraphs and use first paragraph as title
-  const paragraphs = content.split('\n\n').filter(p => p.trim());
-  const title = paragraphs[0] ? paragraphs[0].trim().substring(0, 100) : content.split('\n')[0].substring(0, 100);
-  const body = paragraphs.length > 1 ? paragraphs.slice(1).join('\n\n') : paragraphs.slice(1).join('\n\n') || '';
+  // Parse title and content from Discord message
+  function parseDiscordMessage(content) {
+    if (!content || !content.trim()) {
+      return { title: 'Untitled Post', body: '' };
+    }
+    
+    // Clean up content
+    const cleanContent = content.trim();
+    
+    // Try to split on double newlines first (proper paragraph separation)
+    let paragraphs = cleanContent.split('\n\n').filter(p => p.trim());
+    
+    // If no double newlines, try single newlines but be smarter about it
+    if (paragraphs.length <= 1) {
+      const lines = cleanContent.split('\n').filter(l => l.trim());
+      
+      // Find a good break point - look for first empty line or after a substantial first line
+      let titleEndIndex = 0;
+      
+      if (lines.length > 0) {
+        const firstLine = lines[0].trim();
+        
+        // If first line is substantial (> 20 chars), use it as title
+        if (firstLine.length > 20) {
+          titleEndIndex = 1;
+        } else {
+          // Look for first substantial line or first 2-3 lines combined
+          let combinedTitle = firstLine;
+          for (let i = 1; i < Math.min(3, lines.length); i++) {
+            const nextLine = lines[i].trim();
+            if (nextLine.length === 0) break; // Empty line, stop here
+            combinedTitle += ' ' + nextLine;
+            titleEndIndex = i + 1;
+            
+            // Stop if we have a good title length
+            if (combinedTitle.length > 30) break;
+          }
+        }
+        
+        paragraphs = [
+          lines.slice(0, titleEndIndex).join(' ').trim(),
+          lines.slice(titleEndIndex).join('\n').trim()
+        ].filter(p => p);
+      }
+    }
+    
+    // Extract title and body
+    const title = paragraphs[0] ? paragraphs[0].trim() : 'Untitled Post';
+    const body = paragraphs.length > 1 ? paragraphs.slice(1).join('\n\n').trim() : '';
+    
+    return { title, body };
+  }
+  
+  // Process hyperlinks in content
+  function processHyperlinks(text) {
+    if (!text) return text;
+    
+    // Convert bare URLs to clickable links
+    text = text.replace(
+      /(https?:\/\/[^\s]+)/g, 
+      '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>'
+    );
+    
+    // Handle Discord markdown links [text](url)
+    text = text.replace(
+      /\[([^\]]+)\]\((https?:\/\/[^\)]+)\)/g,
+      '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>'
+    );
+    
+    return text;
+  }
+  
+  const { title, body } = parseDiscordMessage(content);
+  const processedBody = processHyperlinks(body);
   
   // Get image URL from attachments if available
   const imageUrl = attachments && attachments[0] ? attachments[0].url : null;
@@ -1053,9 +1123,20 @@ app.post('/webhook/discord', async (req, res) => {
     localImagePath = `/uploads/Images/${rotationImage}`;
   }
   
+  console.log(`📝 Parsed Discord message:`);
+  console.log(`   Title: "${title}"`);
+  console.log(`   Body length: ${processedBody.length} chars`);
+  console.log(`   Body preview: "${processedBody.substring(0, 100)}${processedBody.length > 100 ? '...' : ''}"`);
+  console.log(`   Has hyperlinks: ${processedBody.includes('<a href=')}`);
+  
+  // Additional validation
+  if (title.length > 200) {
+    console.log(`⚠️ Warning: Title is very long (${title.length} chars), consider reviewing parsing logic`);
+  }
+  
   db.run(
     'INSERT INTO news (title, content, author, discord_message_id, image_url, local_image_path) VALUES (?, ?, ?, ?, ?, ?)',
-    [title, body, author, message_id, imageUrl, localImagePath],
+    [title, processedBody, author, message_id, imageUrl, localImagePath],
     function(err) {
       if (err) {
         console.error('Error inserting news:', err.message);
