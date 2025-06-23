@@ -162,7 +162,8 @@ client.on('messageCreate', async (message) => {
             .replace(/#website/gi, '')
             .replace(/<@&?\d+>/g, '') // Remove all Discord user/role mentions
             .replace(/<#\d+>/g, '') // Remove channel mentions
-            .replace(/\s+/g, ' ') // Replace multiple spaces with single space
+            .replace(/[ \t]+/g, ' ') // Replace multiple spaces/tabs with single space (preserve newlines)
+            .replace(/\n{3,}/g, '\n\n') // Replace 3+ newlines with double newlines
             .trim();
 
         // If content is too short, skip
