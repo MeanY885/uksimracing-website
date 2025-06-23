@@ -675,12 +675,32 @@ async function checkLiveStreams() {
       
       if (searchData.items && searchData.items.length > 0) {
         const liveStream = searchData.items[0];
+        
+        // Get actual start time from video details
+        let actualStartTime = liveStream.snippet.publishedAt; // fallback
+        try {
+          const videoDetailsResponse = await fetch(
+            `https://www.googleapis.com/youtube/v3/videos?part=liveStreamingDetails&id=${liveStream.id.videoId}&key=${youtubeApiKey}`
+          );
+          const videoDetails = await videoDetailsResponse.json();
+          
+          if (videoDetails.items && videoDetails.items.length > 0) {
+            const streamingDetails = videoDetails.items[0].liveStreamingDetails;
+            if (streamingDetails && streamingDetails.actualStartTime) {
+              actualStartTime = streamingDetails.actualStartTime;
+              console.log(`📺 Using actual start time: ${actualStartTime} instead of published time: ${liveStream.snippet.publishedAt}`);
+            }
+          }
+        } catch (detailsError) {
+          console.log('⚠️ Could not fetch video details for actual start time, using published time');
+        }
+        
         const liveStreamData = {
           id: liveStream.id.videoId,
           title: liveStream.snippet.title,
           description: liveStream.snippet.description,
           thumbnail: liveStream.snippet.thumbnails.maxres?.url || liveStream.snippet.thumbnails.high?.url || liveStream.snippet.thumbnails.medium?.url,
-          startTime: liveStream.snippet.publishedAt,
+          startTime: actualStartTime,
           isLive: true,
           platform: 'youtube',
           embedUrl: `https://www.youtube.com/embed/${liveStream.id.videoId}`,

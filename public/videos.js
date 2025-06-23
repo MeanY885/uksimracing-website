@@ -81,7 +81,7 @@ class LiveStreamManager {
                 </div>
                 <div class="live-stream-meta">
                     <span class="live-stream-status">🔴 LIVE</span>
-                    <span class="live-stream-time">Started ${startedTime}${viewerText}</span>
+                    <span class="live-stream-time">Started streaming ${startedTime}${viewerText}</span>
                     ${stream.gameName ? `<span class="live-stream-game">Playing ${stream.gameName}</span>` : ''}
                 </div>
             </div>

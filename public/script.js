@@ -74,12 +74,31 @@ class NewsManager {
         const formattedDate = this.formatDate(item.timestamp);
         const excerpt = this.createExcerpt(item.content, 150);
         
-        // Create image element with error handling - prefer local images
+        // Create image element with error handling - prefer local images with fallback
         let imageHTML = '';
-        const imageSource = item.local_image_path || item.image_url;
+        const localImagePath = item.local_image_path;
+        const discordImageUrl = item.image_url;
         
-        if (imageSource) {
-            imageHTML = `<img src="${imageSource}" alt="${item.title}" class="news-image" onerror="this.style.display='none'; this.parentNode.querySelector('.news-image-placeholder').style.display='flex';">
+        if (localImagePath || discordImageUrl) {
+            // Try local image first, then fallback to Discord URL
+            const primarySource = localImagePath || discordImageUrl;
+            const fallbackSource = localImagePath && discordImageUrl ? discordImageUrl : null;
+            
+            let onErrorHandler = `this.style.display='none'; this.parentNode.querySelector('.news-image-placeholder').style.display='flex';`;
+            
+            // If we have a fallback source, try that first before showing placeholder
+            if (fallbackSource) {
+                onErrorHandler = `
+                    if (this.src !== '${fallbackSource}') {
+                        this.src = '${fallbackSource}';
+                    } else {
+                        this.style.display='none'; 
+                        this.parentNode.querySelector('.news-image-placeholder').style.display='flex';
+                    }
+                `;
+            }
+            
+            imageHTML = `<img src="${primarySource}" alt="${item.title}" class="news-image" onerror="${onErrorHandler}">
                         <div class="news-image-placeholder" style="display: none;">📰</div>`;
         } else {
             imageHTML = `<div class="news-image-placeholder">📰</div>`;
@@ -166,9 +185,36 @@ class NewsManager {
         document.getElementById('modalNewsContent').innerHTML = this.formatContentWithParagraphs(item.content);
         
         const imageContainer = document.getElementById('modalNewsImage');
-        const modalImageSource = item.local_image_path || item.image_url;
-        if (modalImageSource) {
-            imageContainer.innerHTML = `<img src="${modalImageSource}" alt="${item.title}" class="news-modal-image">`;
+        const modalLocalPath = item.local_image_path;
+        const modalDiscordUrl = item.image_url;
+        
+        if (modalLocalPath || modalDiscordUrl) {
+            const modalPrimarySource = modalLocalPath || modalDiscordUrl;
+            const modalFallbackSource = modalLocalPath && modalDiscordUrl ? modalDiscordUrl : null;
+            
+            let modalOnErrorHandler = '';
+            if (modalFallbackSource) {
+                modalOnErrorHandler = `
+                    if (this.src !== '${modalFallbackSource}') {
+                        this.src = '${modalFallbackSource}';
+                    } else {
+                        this.style.display='none';
+                        this.parentNode.parentNode.querySelector('.news-modal-body').style.gridTemplateColumns = '1fr';
+                        this.parentNode.style.display = 'none';
+                    }
+                `;
+            } else {
+                modalOnErrorHandler = `
+                    this.style.display='none';
+                    this.parentNode.parentNode.querySelector('.news-modal-body').style.gridTemplateColumns = '1fr';
+                    this.parentNode.style.display = 'none';
+                `;
+            }
+            
+            imageContainer.innerHTML = `<img src="${modalPrimarySource}" alt="${item.title}" class="news-modal-image" onerror="${modalOnErrorHandler}">`;
+            // Reset grid layout in case it was changed by previous modal
+            modal.querySelector('.news-modal-body').style.gridTemplateColumns = '';
+            imageContainer.style.display = '';
         } else {
             // If no image, make text full width
             modal.querySelector('.news-modal-body').style.gridTemplateColumns = '1fr';
