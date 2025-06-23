@@ -658,44 +658,118 @@ function setupAutoYouTubeSync() {
 async function checkLiveStreams() {
   const youtubeApiKey = process.env.YOUTUBE_API_KEY;
   const channelId = process.env.YOUTUBE_CHANNEL_ID || 'UCPM4Lq8AQpX-74XZJmeuv6Q';
+  const twitchClientId = process.env.TWITCH_CLIENT_ID;
+  const twitchClientSecret = process.env.TWITCH_CLIENT_SECRET;
   
-  if (!youtubeApiKey) {
-    console.log('⚠️ YouTube API key not configured - skipping live stream check');
-    return;
+  let liveStreamFound = false;
+  
+  // Check YouTube live streams
+  if (youtubeApiKey) {
+    try {
+      console.log('📺 Checking for YouTube live streams...');
+      
+      const searchResponse = await fetch(
+        `https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${channelId}&eventType=live&type=video&key=${youtubeApiKey}`
+      );
+      const searchData = await searchResponse.json();
+      
+      if (searchData.items && searchData.items.length > 0) {
+        const liveStream = searchData.items[0];
+        const liveStreamData = {
+          id: liveStream.id.videoId,
+          title: liveStream.snippet.title,
+          description: liveStream.snippet.description,
+          thumbnail: liveStream.snippet.thumbnails.maxres?.url || liveStream.snippet.thumbnails.high?.url || liveStream.snippet.thumbnails.medium?.url,
+          startTime: liveStream.snippet.publishedAt,
+          isLive: true,
+          platform: 'youtube',
+          embedUrl: `https://www.youtube.com/embed/${liveStream.id.videoId}`,
+          watchUrl: `https://www.youtube.com/watch?v=${liveStream.id.videoId}`
+        };
+        
+        global.liveStreamData = liveStreamData;
+        console.log(`🔴 YouTube live stream detected: ${liveStreamData.title}`);
+        liveStreamFound = true;
+      }
+    } catch (error) {
+      console.error('❌ YouTube live stream check failed:', error.message);
+    }
+  } else {
+    console.log('⚠️ YouTube API key not configured - skipping YouTube live stream check');
   }
   
-  try {
-    console.log('📺 Checking for live streams...');
-    
-    // Search for live broadcasts
-    const searchResponse = await fetch(
-      `https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${channelId}&eventType=live&type=video&key=${youtubeApiKey}`
-    );
-    const searchData = await searchResponse.json();
-    
-    if (searchData.items && searchData.items.length > 0) {
-      const liveStream = searchData.items[0];
-      const liveStreamData = {
-        id: liveStream.id.videoId,
-        title: liveStream.snippet.title,
-        description: liveStream.snippet.description,
-        thumbnail: liveStream.snippet.thumbnails.maxres?.url || liveStream.snippet.thumbnails.high?.url || liveStream.snippet.thumbnails.medium?.url,
-        startTime: liveStream.snippet.publishedAt,
-        isLive: true
-      };
+  // Check Twitch live streams for UKSimRacing channel
+  if (!liveStreamFound && twitchClientId && twitchClientSecret) {
+    try {
+      console.log('🟣 Checking for UKSimRacing Twitch live stream...');
       
-      // Store live stream data globally
-      global.liveStreamData = liveStreamData;
-      console.log(`🔴 Live stream detected: ${liveStreamData.title}`);
-    } else {
-      // No live streams
-      global.liveStreamData = null;
-      console.log('📺 No live streams currently active');
+      // Get Twitch OAuth token
+      const tokenResponse = await axios.post('https://id.twitch.tv/oauth2/token', {
+        client_id: twitchClientId,
+        client_secret: twitchClientSecret,
+        grant_type: 'client_credentials'
+      });
+      
+      if (tokenResponse.data.access_token) {
+        const accessToken = tokenResponse.data.access_token;
+        
+        // Get user ID for uksimracing
+        const userResponse = await axios.get('https://api.twitch.tv/helix/users', {
+          headers: {
+            'Client-ID': twitchClientId,
+            'Authorization': `Bearer ${accessToken}`
+          },
+          params: {
+            login: 'uksimracing'
+          }
+        });
+        
+        if (userResponse.data.data && userResponse.data.data.length > 0) {
+          const userId = userResponse.data.data[0].id;
+          
+          // Check if the channel is live
+          const streamResponse = await axios.get('https://api.twitch.tv/helix/streams', {
+            headers: {
+              'Client-ID': twitchClientId,
+              'Authorization': `Bearer ${accessToken}`
+            },
+            params: {
+              user_id: userId
+            }
+          });
+          
+          if (streamResponse.data.data && streamResponse.data.data.length > 0) {
+            const stream = streamResponse.data.data[0];
+            const liveStreamData = {
+              id: stream.id,
+              title: stream.title,
+              description: stream.title,
+              thumbnail: stream.thumbnail_url.replace('{width}', '1920').replace('{height}', '1080'),
+              startTime: stream.started_at,
+              isLive: true,
+              platform: 'twitch',
+              embedUrl: `https://player.twitch.tv/?channel=uksimracing&parent=${process.env.DOMAIN || 'localhost'}`,
+              watchUrl: 'https://www.twitch.tv/uksimracing',
+              viewerCount: stream.viewer_count,
+              gameName: stream.game_name
+            };
+            
+            global.liveStreamData = liveStreamData;
+            console.log(`🟣 Twitch live stream detected: ${liveStreamData.title} (${liveStreamData.viewerCount} viewers)`);
+            liveStreamFound = true;
+          }
+        }
+      }
+    } catch (error) {
+      console.error('❌ Twitch live stream check failed:', error.message);
     }
-    
-  } catch (error) {
-    console.error('❌ Live stream check failed:', error.message);
+  } else if (!liveStreamFound) {
+    console.log('⚠️ Twitch API credentials not configured - skipping Twitch live stream check');
+  }
+  
+  if (!liveStreamFound) {
     global.liveStreamData = null;
+    console.log('📺 No live streams currently active');
   }
 }
 
@@ -786,9 +860,6 @@ async function checkTwitchStreams() {
         const title = stream.title.toLowerCase();
         const hasMatchingTerm = searchTerms.some(term => {
           const match = title.includes(term.toLowerCase());
-          if (match) {
-            console.log(`🟣 MATCH FOUND: "${stream.title}" contains "${term}"`);
-          }
           return match;
         });
         
@@ -796,6 +867,22 @@ async function checkTwitchStreams() {
       });
       
       console.log(`🟣 Filtered to ${communityStreams.length} community streams out of ${allStreams.length} total`);
+      
+      // Show the matched streams for debugging
+      if (communityStreams.length > 0) {
+        console.log('🟣 Matched UKSR/UKSimRacing streams:');
+        communityStreams.forEach((stream, index) => {
+          console.log(`  ${index + 1}. "${stream.title}" by ${stream.user_name} (${stream.viewer_count} viewers)`);
+        });
+      } else {
+        console.log('🟣 No streams found matching UKSR or UKSimRacing terms');
+        // Show a few random stream titles to verify the search is working
+        const sampleStreams = allStreams.slice(0, 5);
+        console.log('🟣 Sample of available stream titles (for comparison):');
+        sampleStreams.forEach((stream, index) => {
+          console.log(`  ${index + 1}. "${stream.title}" by ${stream.user_name}`);
+        });
+      }
     }
     
     // Remove duplicates based on user_id

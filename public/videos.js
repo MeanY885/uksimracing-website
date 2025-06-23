@@ -1,6 +1,109 @@
 // Videos Page JavaScript
 console.log('🎥 Videos page loading...');
 
+// Live Stream Manager
+class LiveStreamManager {
+    constructor() {
+        this.liveStreamContainer = document.getElementById('liveStreamContainer');
+        this.liveStreamSection = document.getElementById('live-stream');
+        this.loading = false;
+        
+        this.init();
+    }
+    
+    init() {
+        this.loadLiveStream();
+        // Refresh live stream status every 2 minutes
+        setInterval(() => {
+            this.loadLiveStream();
+        }, 2 * 60 * 1000);
+    }
+    
+    async loadLiveStream() {
+        if (this.loading) return;
+        
+        this.loading = true;
+        
+        try {
+            const response = await fetch('/api/livestream');
+            const data = await response.json();
+            
+            if (data.liveStream && data.liveStream.isLive) {
+                // Show the section and render live stream
+                this.liveStreamSection.style.display = 'block';
+                this.renderLiveStream(data.liveStream);
+                console.log(`🔴 Live stream found: ${data.liveStream.title}`);
+            } else {
+                // Hide the section when no live stream
+                this.liveStreamSection.style.display = 'none';
+                console.log('📺 No live stream currently active');
+            }
+        } catch (error) {
+            console.error('Error loading live stream:', error);
+            // Hide section on error
+            this.liveStreamSection.style.display = 'none';
+        } finally {
+            this.loading = false;
+        }
+    }
+    
+    renderLiveStream(stream) {
+        this.liveStreamContainer.innerHTML = '';
+        
+        const streamCard = this.createLiveStreamCard(stream);
+        this.liveStreamContainer.appendChild(streamCard);
+    }
+    
+    createLiveStreamCard(stream) {
+        const card = document.createElement('div');
+        card.className = 'live-stream-embed';
+        
+        const platformIcon = stream.platform === 'youtube' ? '📺' : '🟣';
+        const viewerText = stream.viewerCount ? ` • ${stream.viewerCount} viewers` : '';
+        const startedTime = this.formatStreamTime(stream.startTime);
+        
+        card.innerHTML = `
+            <div class="live-stream-player">
+                <iframe 
+                    src="${stream.embedUrl}" 
+                    frameborder="0" 
+                    allowfullscreen
+                    allow="autoplay; fullscreen"
+                    class="live-stream-iframe">
+                </iframe>
+            </div>
+            <div class="live-stream-info">
+                <div class="live-stream-header">
+                    <h4 class="live-stream-title">${stream.title}</h4>
+                    <a href="${stream.watchUrl}" target="_blank" class="live-stream-watch-btn">
+                        ${platformIcon} Watch on ${stream.platform === 'youtube' ? 'YouTube' : 'Twitch'}
+                    </a>
+                </div>
+                <div class="live-stream-meta">
+                    <span class="live-stream-status">🔴 LIVE</span>
+                    <span class="live-stream-time">Started ${startedTime}${viewerText}</span>
+                    ${stream.gameName ? `<span class="live-stream-game">Playing ${stream.gameName}</span>` : ''}
+                </div>
+            </div>
+        `;
+        
+        return card;
+    }
+    
+    formatStreamTime(startedAt) {
+        const startTime = new Date(startedAt);
+        const now = new Date();
+        const diffMinutes = Math.floor((now - startTime) / (1000 * 60));
+        
+        if (diffMinutes < 60) {
+            return `${diffMinutes}m ago`;
+        } else {
+            const hours = Math.floor(diffMinutes / 60);
+            return `${hours}h ago`;
+        }
+    }
+}
+
 class VideosManager {
     constructor() {
         this.videosContainer = document.getElementById('videosContainer');
@@ -253,6 +356,12 @@ class VideosManager {
 document.addEventListener('DOMContentLoaded', () => {
     console.log('🎥 Videos page initializing...');
     try {
+        // Initialize live stream manager
+        if (document.getElementById('liveStreamContainer')) {
+            console.log('🔴 Creating LiveStreamManager...');
+            window.liveStreamManager = new LiveStreamManager();
+        }
+        
         console.log('🎬 Creating VideosManager...');
         window.videosManager = new VideosManager();
         

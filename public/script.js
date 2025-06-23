@@ -385,6 +385,49 @@ class StatsAnimation {
     }
 }
 
+// Live Stream Indicator Manager
+class LiveIndicatorManager {
+    constructor() {
+        this.liveIndicator = document.getElementById('navLiveIndicator');
+        this.loading = false;
+        
+        this.init();
+    }
+    
+    init() {
+        this.checkLiveStatus();
+        // Check live status every 2 minutes
+        setInterval(() => {
+            this.checkLiveStatus();
+        }, 2 * 60 * 1000);
+    }
+    
+    async checkLiveStatus() {
+        if (this.loading || !this.liveIndicator) return;
+        
+        this.loading = true;
+        
+        try {
+            const response = await fetch('/api/livestream');
+            const data = await response.json();
+            
+            if (data.liveStream && data.liveStream.isLive) {
+                this.liveIndicator.style.display = 'inline';
+                console.log('🔴 Live indicator activated');
+            } else {
+                this.liveIndicator.style.display = 'none';
+                console.log('📺 Live indicator deactivated');
+            }
+        } catch (error) {
+            console.error('Error checking live status:', error);
+            // Hide indicator on error
+            this.liveIndicator.style.display = 'none';
+        } finally {
+            this.loading = false;
+        }
+    }
+}
+
 // Community Streams Manager
 class CommunityStreamsManager {
     constructor() {
@@ -518,6 +561,12 @@ document.addEventListener('DOMContentLoaded', () => {
         
         console.log('📊 Creating StatsAnimation...');
         new StatsAnimation();
+        
+        // Initialize LiveIndicatorManager if nav live indicator exists
+        if (document.getElementById('navLiveIndicator')) {
+            console.log('🔴 Creating LiveIndicatorManager...');
+            window.liveIndicatorManager = new LiveIndicatorManager();
+        }
         
         // Initialize CommunityStreamsManager if community streams container exists
         if (document.getElementById('communityStreamsContainer')) {

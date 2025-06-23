@@ -91,7 +91,10 @@
                 
                 <nav class="nav">
                     <a href="/" class="nav-link">Home</a>
-                    <a href="/videos" class="nav-link active">Live Streams & Videos On Demand</a>
+                    <a href="/videos" class="nav-link active">
+                        Live Streams & Videos On Demand
+                        <span id="navLiveIndicator" class="nav-live-indicator" style="display: none;">🔴 LIVE</span>
+                    </a>
                     <a href="/partners" class="nav-link">Partners</a>
                     <a href="/leagues" class="nav-link">Active Leagues</a>
                 </nav>
@@ -100,6 +103,18 @@
     </header>
 
     <main>
+        <!-- Live Stream Section -->
+        <section id="live-stream" class="live-stream-section" style="display: none;">
+            <div class="container">
+                <div class="live-stream-content">
+                    <h3 class="subsection-title">🔴 <span class="text-accent">LIVE NOW</span></h3>
+                    <div id="liveStreamContainer" class="live-stream-container">
+                        <div class="loading">Checking for live streams...</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
         <!-- Community Streams Section -->
         <section id="community-streams" class="community-streams-section" style="display: none;">
             <div class="container">
