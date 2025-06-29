@@ -10,6 +10,9 @@ const cron = require('node-cron');
 const axios = require('axios');
 const fs = require('fs-extra');
 const crypto = require('crypto');
+
+// Twitch token storage file path
+const TWITCH_TOKENS_FILE = path.join(__dirname, 'data', 'twitch-tokens.json');
 const multer = require('multer');
 const https = require('https');
 const http = require('http');
@@ -997,6 +1000,81 @@ async function checkTwitchStreams() {
   }
 }
 
+// Twitch token storage functions
+async function loadTwitchTokens() {
+  try {
+    if (!fs.existsSync(TWITCH_TOKENS_FILE)) {
+      return null;
+    }
+    const data = await fs.readFile(TWITCH_TOKENS_FILE, 'utf8');
+    return JSON.parse(data);
+  } catch (error) {
+    console.error('Error loading Twitch tokens:', error);
+    return null;
+  }
+}
+
+async function saveTwitchTokens(tokens) {
+  try {
+    await fs.ensureDir(path.dirname(TWITCH_TOKENS_FILE));
+    await fs.writeFile(TWITCH_TOKENS_FILE, JSON.stringify(tokens, null, 2));
+    return true;
+  } catch (error) {
+    console.error('Error saving Twitch tokens:', error);
+    return false;
+  }
+}
+
+async function refreshTwitchUserToken() {
+  const tokens = await loadTwitchTokens();
+  if (!tokens || !tokens.refresh_token) {
+    console.error('No refresh token available for Twitch bot');
+    return null;
+  }
+
+  const twitchClientId = process.env.TWITCH_CLIENT_ID;
+  const twitchClientSecret = process.env.TWITCH_CLIENT_SECRET;
+
+  try {
+    const response = await axios.post('https://id.twitch.tv/oauth2/token', {
+      client_id: twitchClientId,
+      client_secret: twitchClientSecret,
+      grant_type: 'refresh_token',
+      refresh_token: tokens.refresh_token
+    });
+
+    const newTokens = {
+      access_token: response.data.access_token,
+      refresh_token: response.data.refresh_token || tokens.refresh_token,
+      expires_at: Date.now() + (response.data.expires_in * 1000),
+      scopes: response.data.scope
+    };
+
+    await saveTwitchTokens(newTokens);
+    return newTokens.access_token;
+  } catch (error) {
+    console.error('Error refreshing Twitch token:', error);
+    return null;
+  }
+}
+
+async function getTwitchUserToken() {
+  const tokens = await loadTwitchTokens();
+  
+  if (!tokens) {
+    console.error('No Twitch tokens found. Bot needs to be authorized first.');
+    return null;
+  }
+
+  // Check if token is still valid (with 5 minute buffer)
+  if (tokens.expires_at && Date.now() < (tokens.expires_at - 300000)) {
+    return tokens.access_token;
+  }
+
+  // Token expired, try to refresh
+  return await refreshTwitchUserToken();
+}
+
 // Send chat message to Twitch stream
 async function sendTwitchChatMessage(broadcasterUserId, message) {
   const twitchClientId = process.env.TWITCH_CLIENT_ID;
@@ -1016,20 +1094,12 @@ async function sendTwitchChatMessage(broadcasterUserId, message) {
   try {
     console.log(`💬 Attempting to send chat message to broadcaster ${broadcasterUserId}...`);
     
-    // Get Twitch OAuth token with user:write:chat scope
-    const tokenResponse = await axios.post('https://id.twitch.tv/oauth2/token', {
-      client_id: twitchClientId,
-      client_secret: twitchClientSecret,
-      grant_type: 'client_credentials'
-    }, {
-      timeout: 10000 // 10 second timeout
-    });
+    // Get user access token for chat messaging
+    const accessToken = await getTwitchUserToken();
     
-    if (!tokenResponse.data.access_token) {
-      throw new Error('Failed to get Twitch access token for chat');
+    if (!accessToken) {
+      throw new Error('Failed to get Twitch user access token for chat. Bot needs to be authorized first.');
     }
-    
-    const accessToken = tokenResponse.data.access_token;
     
     // Send chat message using Twitch Helix API
     // Using the configured bot account to send messages
@@ -1099,6 +1169,89 @@ app.get('/partners', (req, res) => {
 // Leagues page route
 app.get('/leagues', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'leagues.html'));
+});
+
+// Twitch OAuth callback endpoint
+app.get('/auth/twitch/callback', async (req, res) => {
+  const { code, state } = req.query;
+  
+  if (!code) {
+    return res.status(400).send('Missing authorization code');
+  }
+
+  const twitchClientId = process.env.TWITCH_CLIENT_ID;
+  const twitchClientSecret = process.env.TWITCH_CLIENT_SECRET;
+  const twitchRedirectUri = process.env.TWITCH_REDIRECT_URI;
+
+  try {
+    // Exchange code for tokens
+    const tokenResponse = await axios.post('https://id.twitch.tv/oauth2/token', {
+      client_id: twitchClientId,
+      client_secret: twitchClientSecret,
+      code: code,
+      grant_type: 'authorization_code',
+      redirect_uri: twitchRedirectUri
+    });
+
+    const tokens = {
+      access_token: tokenResponse.data.access_token,
+      refresh_token: tokenResponse.data.refresh_token,
+      expires_at: Date.now() + (tokenResponse.data.expires_in * 1000),
+      scopes: tokenResponse.data.scope
+    };
+
+    // Save tokens
+    const saved = await saveTwitchTokens(tokens);
+    if (saved) {
+      res.send(`
+        <html>
+          <body>
+            <h2>✅ Twitch Bot Authorization Successful!</h2>
+            <p>The bot has been authorized and can now send chat messages.</p>
+            <p>You can close this window.</p>
+          </body>
+        </html>
+      `);
+      console.log('✅ Twitch bot authorization completed successfully');
+    } else {
+      throw new Error('Failed to save tokens');
+    }
+  } catch (error) {
+    console.error('Error in Twitch OAuth callback:', error);
+    res.status(500).send(`
+      <html>
+        <body>
+          <h2>❌ Authorization Failed</h2>
+          <p>Error: ${error.message}</p>
+        </body>
+      </html>
+    `);
+  }
+});
+
+// Generate Twitch authorization URL for bot setup
+app.get('/admin/twitch/authorize', (req, res) => {
+  const twitchClientId = process.env.TWITCH_CLIENT_ID;
+  const twitchRedirectUri = process.env.TWITCH_REDIRECT_URI;
+  const state = crypto.randomBytes(16).toString('hex');
+  
+  const authUrl = `https://id.twitch.tv/oauth2/authorize?` +
+    `response_type=code&` +
+    `client_id=${twitchClientId}&` +
+    `redirect_uri=${encodeURIComponent(twitchRedirectUri)}&` +
+    `scope=user:write:chat&` +
+    `state=${state}`;
+
+  res.send(`
+    <html>
+      <body>
+        <h2>Twitch Bot Authorization</h2>
+        <p>Click the link below to authorize the bot for chat messaging:</p>
+        <p><a href="${authUrl}" target="_blank">Authorize Twitch Bot</a></p>
+        <p><strong>Important:</strong> You must be logged in as the bot user (ID: ${process.env.TWITCH_BOT_USER_ID}) on Twitch.</p>
+      </body>
+    </html>
+  `);
 });
 
 // Function to get next image from rotation
