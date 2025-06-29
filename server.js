@@ -316,6 +316,9 @@ function initDatabase() {
   setupAutoYouTubeSync();
 }
 
+// Global variable to track which streams have already received messages
+global.messagedStreams = new Set();
+
 // Discord OAuth2 Configuration
 passport.use(new DiscordStrategy({
   clientID: process.env.DISCORD_CLIENT_ID,
@@ -940,6 +943,33 @@ async function checkTwitchStreams() {
         };
       });
       
+      // Check for new streams and send welcome messages
+      const newStreams = streamsWithUserData.filter(stream => 
+        !global.messagedStreams.has(stream.user_id)
+      );
+      
+      if (newStreams.length > 0) {
+        console.log(`💬 Found ${newStreams.length} new streams to message`);
+        
+        // Send welcome message to new streams
+        for (const stream of newStreams) {
+          const welcomeMessage = "Automated Message: Your stream has been detected and is being featured on https://uksimracing.co.uk, good luck and happy racing!";
+          
+          const messageSent = await sendTwitchChatMessage(stream.user_id, welcomeMessage);
+          
+          if (messageSent) {
+            // Mark this stream as messaged
+            global.messagedStreams.add(stream.user_id);
+            console.log(`💬 Sent welcome message to ${stream.user_name} (${stream.user_login})`);
+          } else {
+            console.log(`❌ Failed to send message to ${stream.user_name} (${stream.user_login})`);
+          }
+          
+          // Add a small delay between messages to respect rate limits
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+      }
+      
       global.twitchCommunityStreams = streamsWithUserData;
       console.log(`🟣 Found ${streamsWithUserData.length} community streams on Twitch playing iRacing`);
     } else {
@@ -947,9 +977,102 @@ async function checkTwitchStreams() {
       console.log('🟣 No community streams found on Twitch');
     }
     
+    // Clean up messaged streams for streams that are no longer live
+    if (global.twitchCommunityStreams && global.twitchCommunityStreams.length > 0) {
+      const currentStreamIds = new Set(global.twitchCommunityStreams.map(stream => stream.user_id));
+      const messagedStreamIds = Array.from(global.messagedStreams);
+      
+      // Remove streams from messaged list if they're no longer live
+      messagedStreamIds.forEach(userId => {
+        if (!currentStreamIds.has(userId)) {
+          global.messagedStreams.delete(userId);
+          console.log(`🧹 Cleaned up messaging record for offline stream: ${userId}`);
+        }
+      });
+    }
+    
   } catch (error) {
     console.error('❌ Twitch community stream check failed:', error.message);
     global.twitchCommunityStreams = [];
+  }
+}
+
+// Send chat message to Twitch stream
+async function sendTwitchChatMessage(broadcasterUserId, message) {
+  const twitchClientId = process.env.TWITCH_CLIENT_ID;
+  const twitchClientSecret = process.env.TWITCH_CLIENT_SECRET;
+  const twitchBotUserId = process.env.TWITCH_BOT_USER_ID;
+  
+  if (!twitchClientId || !twitchClientSecret) {
+    console.log('⚠️ Twitch API credentials not configured - skipping chat message');
+    return false;
+  }
+  
+  if (!twitchBotUserId) {
+    console.log('⚠️ Twitch bot user ID not configured - skipping chat message');
+    return false;
+  }
+  
+  try {
+    console.log(`💬 Attempting to send chat message to broadcaster ${broadcasterUserId}...`);
+    
+    // Get Twitch OAuth token with user:write:chat scope
+    const tokenResponse = await axios.post('https://id.twitch.tv/oauth2/token', {
+      client_id: twitchClientId,
+      client_secret: twitchClientSecret,
+      grant_type: 'client_credentials'
+    }, {
+      timeout: 10000 // 10 second timeout
+    });
+    
+    if (!tokenResponse.data.access_token) {
+      throw new Error('Failed to get Twitch access token for chat');
+    }
+    
+    const accessToken = tokenResponse.data.access_token;
+    
+    // Send chat message using Twitch Helix API
+    // Using the configured bot account to send messages
+    const chatResponse = await axios.post('https://api.twitch.tv/helix/chat/messages', {
+      broadcaster_id: broadcasterUserId,
+      sender_id: twitchBotUserId, // Bot account sends the message
+      message: message
+    }, {
+      headers: {
+        'Client-ID': twitchClientId,
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json'
+      },
+      timeout: 10000 // 10 second timeout
+    });
+    
+    console.log(`✅ Successfully sent chat message to broadcaster ${broadcasterUserId}`);
+    return true;
+    
+  } catch (error) {
+    // Handle specific error cases
+    if (error.response) {
+      const status = error.response.status;
+      const errorData = error.response.data;
+      
+      if (status === 401) {
+        console.error(`❌ Authentication failed for broadcaster ${broadcasterUserId}: Invalid credentials or insufficient permissions`);
+      } else if (status === 403) {
+        console.error(`❌ Access forbidden for broadcaster ${broadcasterUserId}: Bot may not have permission to send messages to this channel`);
+      } else if (status === 429) {
+        console.error(`❌ Rate limit exceeded for broadcaster ${broadcasterUserId}: Too many requests`);
+      } else if (status === 400) {
+        console.error(`❌ Bad request for broadcaster ${broadcasterUserId}:`, errorData?.message || 'Invalid request format');
+      } else {
+        console.error(`❌ Failed to send chat message to broadcaster ${broadcasterUserId} (Status: ${status}):`, errorData || error.message);
+      }
+    } else if (error.code === 'ECONNABORTED') {
+      console.error(`❌ Timeout sending chat message to broadcaster ${broadcasterUserId}: Request timed out`);
+    } else {
+      console.error(`❌ Network error sending chat message to broadcaster ${broadcasterUserId}:`, error.message);
+    }
+    
+    return false;
   }
 }
 
